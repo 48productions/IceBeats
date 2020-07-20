@@ -6,12 +6,15 @@ IceBeats is yet *another* Arduino sketch for real-time music visualization on an
 
 It is designed around the Teensy Audio Library to run on the Teensy 3.2. Input is taken from an RCA audio jack, and visualized to a WS2812B LED strip. Other devices that can run the Teensy Audio library (like newer/fancier Teensy boards) should also be compatible.
 
-### Hardware
+**Keep in mind this project is still a work in progress!**
+
+
+## Hardware
  * Accepts audio input via RCA/mono 3.5mm jack
  * Designed around Teensy 3.2, other Audio-capable Teensy boards likely compatible
  * Output to WS2812B LED Strip via FastLED (other strip types likely compatible)
  
-### Visualization
+## Visualization
  * FFT-based music visualization using the Teensy Audio Library
  * Multiple visualization effects and color palettes, cycled at random when music is quiet
  * Multiple idle animations to play when there is no music
