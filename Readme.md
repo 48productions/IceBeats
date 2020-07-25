@@ -16,6 +16,9 @@ It is designed around the Teensy Audio Library to run on the Teensy 3.2. Input i
  
 ## Visualization
  * FFT-based music visualization using the Teensy Audio Library
- * Multiple visualization effects and color palettes, cycled at random when music is quiet
- * Multiple idle animations to play when there is no music
- * Reads StepMania's SextetStream lighting format via serial to drive traditional DDR/ITG-style cabinet lights
+ * Multiple visualization effects and color palettes (Planned: Cycled at random when music is quiet)
+ * Planned: Multiple idle animations to play when there is no music
+ * Planned: Reads StepMania's SextetStream lighting format via serial to drive traditional DDR/ITG-style cabinet lights
+ 
+## Todo:
+ * Everything :(
