@@ -65,7 +65,7 @@ CRGB leds[STRIP_LENGTH];
 
 Bounce debug0 = Bounce(5, 5); //DEBUG 0: Swap palette
 Bounce debug1 = Bounce(4, 5); //DEBUG 1: Force bass kick/Swap visualization effect
-Bounce debug2 = Bounce(3, 5); //DEBUG 2: Max FFT section reads, force getBassKicking()
+Bounce debug2 = Bounce(3, 5); //DEBUG 2: Force getBassKickProgress() (can also force all FFT section reads, uncomment below)
 
 
 
@@ -97,6 +97,7 @@ VisualizationEffect curEffect = VEPunch; //Current visualization in use
 
 int curPaletteIndex = 0; //Current palette index in use
 CHSV curPalette[4] = palettes[0]; //Current palette colors in use
+CHSV curPaletteDim[4] = palettes[0]; //A slightly dimmed version of the current palette, used for "pulse to the beat" effects
 
 unsigned long curMillis = 0; //Current time
 
@@ -131,9 +132,11 @@ void setup() {
   LEDS.addLeds<WS2812, DATA_PIN_STRIP, GRB>(leds, STRIP_LENGTH);
   LEDS.setBrightness(84);
 
-  pinMode(3, INPUT_PULLUP); //Pinmode the debug buttons
+  pinMode(3, INPUT_PULLUP); //Pinmode the debug buttons and debug light
   pinMode(4, INPUT_PULLUP);
   pinMode(5, INPUT_PULLUP);
+
+  pinMode(LED_BUILTIN, OUTPUT);
 
   setNewPalette(0); //Initialize palette-related variables
 
@@ -216,7 +219,7 @@ void mirrorStrip() {
  * Always returns value between 0 and 1
  */
 float getFFTSection(int id) {
-  if (!debug2.read()) { return 1; } //Holding debug 2? Make all FFT sections return their max value
+  //if (!debug2.read()) { return 1; } //Holding debug 2? Make all FFT sections return their max value
   
   switch (id) { //Switch based on the id of the section to get. Each Teensy FFT bin is 43Hz wide, and we get groups of bins for each section.
     case 0: //Bass bin - 129-172Hz
@@ -253,13 +256,26 @@ bool getBassKicked() {
 
 
 /**
- * Returns true if the bass FFT bin is higher than normal
+ * Returns true if the bass is currently kicking
  * Used for other beat-based effects
  */
-bool getBassKicking() {
-  float curBassValue = getFFTSection(0); //Get the current value and running average of the bass section
+float getBassKickProgress() {
+  /*float curBassValue = getFFTSection(0); //Old implementation: Have we met similar criteria for a regular bass kick to happen?
   float curBassAverage = bassAverage.getAverage();
-  return (curBassValue >= curBassAverage * 1.45 && curBassValue >= 0.15) || !debug2.read();
+  bool kicking = (curBassValue >= curBassAverage * 1.35 && curBassValue >= 0.15) || !debug2.read();*/
+  //bool kicking = curMillis <= lastBassKickMillis + 150;
+
+  //The current implementation is really just an extension of getBassKicked for effects that "pulse to the beat"
+  //Right now, bass kicks arbitrarily "happen" for a certain amount of time (a.k.a. 150ms)
+  //This function returns how close we are to the start of the 150ms window after the bass kick happens (1 - just started kick, 0 - 150ms has passed since kick)
+  //Since this function pulls the time the last time getBassKicked() returned true, getBassKicked() MUST be called beforehand for this function to work!
+  float kicking = 0;
+
+  if (curMillis <= lastBassKickMillis + 150) { kicking = 1 - ((float)(curMillis - lastBassKickMillis) / 150); } //Only calculate this value if we're still in the middle of the bass kick (and guaranteed to not return less than 0)
+  
+  digitalWrite(LED_BUILTIN, kicking > 0); //Also light our debug LED while the bass kick is happening
+  Serial.println(kicking);
+  return kicking;
 }
 
 
@@ -271,6 +287,10 @@ void setNewPalette(int paletteId) {
   if (curPaletteIndex < 0) { curPaletteIndex = MAX_PALETTE; } //Wrap around palette values in case we lazily just give this function "curPalette + 1"
   if (curPaletteIndex > MAX_PALETTE) { curPaletteIndex = 0; }
   memcpy(curPalette, palettes[curPaletteIndex], sizeof(curPalette)); //Copy the contents of the new palette to use to curPalette[]
+  
+  for (short i = 0; i <= 3; i++) { //Also set the current dim palette's values to be a dim version of the current palette
+    curPaletteDim[i] = CHSV(curPalette[i].h, curPalette[i].s, curPalette[i].v * 0.7);
+  }
 
   if (curEffect == VEPulse) { //Visualizing pulse or punch, also set the color to use for bass kicks
     bass_scroll_color = CHSV(curPalette[0].h + 15, constrain(curPalette[0].s - 40, 0, 255), 160);
@@ -371,17 +391,20 @@ void visualizePulse() {
   //For each section to draw, iterate through the number of LEDs to draw. Then, find and add the offset to each LED to draw so it draws in the correct place on the strip
   //High offset: None - Start from 0 and increment upwards
   for (int i = 0; i < sectionSize[2]; i++) { //Set HIGH
-    leds[i] = curPalette[3];
+    //leds[i] = curPalette[3]; //Static colors are boring, let's make them pulse to the beat!
+    leds[i] = blend(curPaletteDim[3], curPalette[3], getBassKickProgress()); //If the bass is kicking, blend in a bit of a brighter version of the current palette
   }
 
   short sectionOffset = STRIP_FOURTH - sectionSize[1] / 2; //Mid offset: 1/4 point on the strip (the center for this section) minus half of this section's size (to draw half on each side of the 1/4 point)
   for (int i = 0; i < sectionSize[1]; i++) { //Set MID
-    leds[i + sectionOffset] = curPalette[1];
+    //leds[i + sectionOffset] = curPalette[1];
+    leds[i + sectionOffset] = blend(curPaletteDim[1], curPalette[1], getBassKickProgress());
   }
 
   sectionOffset = STRIP_HALF - sectionSize[0]; //Bass offset: 1/2 point on the strip minus this section's size
   for (int i = 0; i < sectionSize[0]; i++) { //Set BASS
-    leds[i + sectionOffset] = curPalette[0];
+    //leds[i + sectionOffset] = curPalette[0];
+    leds[i + sectionOffset] = blend(curPaletteDim[0], curPalette[0], getBassKickProgress());
   } 
 
   //Finally, mirror the first half of the strip to the second half
@@ -422,22 +445,26 @@ void visualizePunch() {
   //For each section to draw, iterate through the number of LEDs to draw. Then, find and add the offset to each LED to draw so it draws in the correct place on the strip
   short sectionOffset = STRIP_8TH + STRIP_16TH - sectionSize[2] / 2; //Mid: Offset 1/8 strip minus half this section's size
   for (int i = 0; i < sectionSize[2]; i++) { //Set MID
-    leds[i + sectionOffset] = curPalette[2];
+    //leds[i + sectionOffset] = curPalette[2];
+    leds[i + sectionOffset] = blend(curPaletteDim[2], curPalette[2], getBassKickProgress()); //If the bass is kicking, blend in a bit of a brighter version of the current palette
   }
 
   sectionOffset = STRIP_8TH * 3 - STRIP_16TH - sectionSize[1] / 2; //Low: Offset 3/8 strip minus half this section's size
   for (int i = 0; i < sectionSize[1]; i++) { //Set LOW
-    leds[i + sectionOffset] = curPalette[1];
+    //leds[i + sectionOffset] = curPalette[1];
+    leds[i + sectionOffset] = blend(curPaletteDim[1], curPalette[1], getBassKickProgress());
   }
 
   //High: No offset - Start from 0 and increment upwards
   for (int i = 0; i < sectionSize[3]; i++) { //Set HIGH
-    leds[i] = curPalette[3];
+    //leds[i] = curPalette[3];
+    leds[i] = blend(curPaletteDim[3], curPalette[3], getBassKickProgress());
   }
   
   sectionOffset = STRIP_HALF - sectionSize[0]; //Bass: Offset 1/2 strip minus this section's size
   for (int i = 0; i < sectionSize[0]; i++) { //Set BASS
-    leds[i + sectionOffset] = curPalette[0];
+    //leds[i + sectionOffset] = curPalette[0];
+    leds[i + sectionOffset] = blend(curPaletteDim[0], curPalette[0], getBassKickProgress());
   } 
 
   //Finally, mirror the first half of the strip to the second half
@@ -458,25 +485,26 @@ void visualizeKick() {
   sectionSize[2] = getFFTSection(2);
   sectionSize[3] = getFFTSection(3);
 
+  getBassKicked(); //Detect bass kick times (this value is unused, but it sets variables getBassKickProgress() requires, later)
+
   short curSection = 1; //Tracks the section we're drawing
   short curOffset = 0; //Tracks the first pixel of each non-bass section we draw
 
   fadeToBlackBy(leds, STRIP_LENGTH, 100); //Fade out the last update from the strip a bit
 
-  avgBassSize = (bassAverage.getAverage() * KICK_MAX_SIZE_BASS) + STRIP_8TH;
   //Serial.println(avgBassSize);
 
   float sectionSum = sectionSize[1] + sectionSize[2] + sectionSize[3]; //Let's find the percentage each non-bass section takes up (and each section's size in pixels)! First find the sum...
-  short nonBassSize = STRIP_HALF - avgBassSize; //...then find out how much non-bass area there is on the strip to draw these other sections to
+  //short nonBassSize = STRIP_HALF - avgBassSize; //...then find out how much non-bass area there is on the strip to draw these other sections to
   for (int i = 1; i <= 3; i++) {
-    sectionSize[i] = (sectionSize[i] / sectionSum) * nonBassSize; //...then divide each section by the sum to find their percentage of the sum
+    sectionSize[i] = (sectionSize[i] / sectionSum) * STRIP_FOURTH; //...then divide each section by the sum to find their percentage of the sum
     //Finally, multiply each section's size by the area on the strip to draw all the non-bass sections to to get how big each section is in pixels
   }
 
 
   //Is it time to update the scroll yet?
   if (curMillis >= nextScrollUpdateMillis) {
-    nextScrollUpdateMillis = curMillis + (getBassKicking() ? 5 : 150); //Find the next time to update the scroll at - don't wait as long if the bass isn't kicking
+    nextScrollUpdateMillis = curMillis + (getBassKickProgress() > 0 ? 5 : 150); //Find the next time to update the scroll at - don't wait as long if the bass isn't kicking
     //avgBassSize = 0;
     scrollOffset++;
     if (scrollOffset > sectionSize[sectionOffset]) { //Scrolled an entire section's worth of pixels, now offset the section instead and reset the scroll
@@ -489,7 +517,7 @@ void visualizeKick() {
 
   //Step 1: Draw the bass section of the strip
   int i = 0; //i is used throughout the rest of this routine, declare/initialize it here
-  for (; i <= sectionSize[0]; i++) {
+  /*for (; i <= sectionSize[0]; i++) {
     leds[STRIP_HALF - i] = curPalette[0];
   }
 
@@ -497,9 +525,9 @@ void visualizeKick() {
     i = avgBassSize;
   } else { //Otherwise, skip a few pixels before drawing the next sections
     i += 3;
-  }
+  }*/
 
-  curOffset = avgBassSize + scrollOffset; //Start tracking the beginning of each section we're drawing...
+  curOffset = scrollOffset; //Start tracking the beginning of each section we're drawing...
   curSection = sectionOffset; //...and start drawing a new section based on the current section offset
   
   //Step 3: Pick up where we left off and iterate through the strip half mark to find the color each strip pixel should be
@@ -508,7 +536,7 @@ void visualizeKick() {
     Serial.print("/");
     Serial.println(sectionSize[curSection]);*/
     if (i - curOffset < sectionSize[curSection]) { //In the middle of drawing a section
-      leds[STRIP_HALF - i] = curPalette[curSection];
+      leds[STRIP_HALF - i] = curPaletteDim[curSection];
       
     } else if (i - curOffset >= sectionSize[curSection]) { //This section has been fully drawn - skip an led and move onto the next section
       i += 2;
@@ -520,13 +548,25 @@ void visualizeKick() {
     }
     
   }
+
+
+  //Now overlay the bass section on top of whatever we've drawn for the rest of the strip
+  i = 0; //Start drawing at the center of the strip...
+  for (; i <= sectionSize[0]; i++) { //And iterate through the LEDs to draw for the bass section
+    leds[STRIP_HALF - i] = curPalette[0];
+  }
+
+  curOffset = i;
+  for (; i <= curOffset + 2; i++) { //And also draw a few blank LEDs after the bass section
+    leds[STRIP_HALF - i] = CRGB::Black;
+  }
   
   //Finally, mirror the first half of the strip to the second half
   mirrorStrip();
 
   //DEBUG: Turn on/off an LED if the bass is kicking
   /*leds[30] = CRGB::Black;
-  if (getBassKicking()) { leds[30] = CHSV(96, 255, 255);}
+  if (getBassKickProgress()) { leds[30] = CHSV(96, 255, 255);}
   leds[31] = CRGB::Black; leds[29] = CRGB::Black;*/
   
 }
