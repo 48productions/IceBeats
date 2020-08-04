@@ -12,6 +12,7 @@
 
 #include <Bounce2.h>
 #include "RunningAverage.h"
+#include <Keyboard.h>
 
 
 
@@ -19,10 +20,21 @@
  * CONFIGURATION *
  ****************/
 #define STRIP_LENGTH 60 //Number of LEDs in the strip
-#define DATA_PIN_STRIP 6 //Pin connected to the LED strip
+#define DATA_PIN_STRIP 5 //Pin connected to the LED strip
 
 #define DEBUG_FFT_BINS true //Set true to test FFT section responsiveness - bin sections are mapped to the brightness of specific pixels
 
+
+#define PIN_BASS_LIGHT 23 //PWM-able light for the bass
+
+
+// STEPMANIA IO (Keystrokes)
+//  Inputs we currently send: Service, Vol Up, P1 Start, P2 Start, P1 MLeft, P2 MLeft, P1 MRight, P2 MRight, P1 Sel, P2 Sel, Vol Down
+//  This code automagically handles any keys you add to this list, just remember to assign it a keycode, a pin, and add entries to keyIOPressed[] as needed!
+
+const int keyIOCodes[] = {'`', -1, KEY_ENTER, KEYPAD_ENTER, 'q', KEYPAD_7, 'e', KEYPAD_9, '/', '-', -2}; //List of keycodes we can send to the PC this is plugged into
+const int keyIOPins[] = {15, 17, 7, 11, 6, 10, 8, 12, 9, 14, 18}; //List of IO pins we should read to send these above keycodes
+bool keyIOPressed[] = {false, false, false, false, false, false, false, false, false, false, false}; //Is xyz key currently pressed?
 
 
 /*************************************************
@@ -68,9 +80,9 @@ AudioConnection          patchCord3(amp, peak);
 
 CRGB leds[STRIP_LENGTH];
 
-Bounce debug0 = Bounce(5, 5); //DEBUG 0: Swap palette
-Bounce debug1 = Bounce(4, 5); //DEBUG 1: Force bass kick/Swap visualization effect
-Bounce debug2 = Bounce(3, 5); //DEBUG 2: Force getBassKickProgress() (can also force all FFT section reads, uncomment below)
+Bounce debug0 = Bounce(4, 5); //DEBUG 0: Swap palette
+Bounce debug1 = Bounce(3, 5); //DEBUG 1: Force bass kick/Swap visualization effect
+Bounce debug2 = Bounce(2, 5); //DEBUG 2: Force getBassKickProgress() (can also force all FFT section reads, uncomment below)
 
 RunningAverage averagePeak(10); //The average measured peak, used for AGC
 float curGain = 1; //Current gain to use, used for AGC
@@ -122,7 +134,7 @@ CHSV bass_scroll_color;
 short sectionOffset = 1; //Kick effect - How many indexes should we offset the sections?
 short avgBassSize = 0; //Kick - The average size the bass is
 short scrollOffset = 0; //Kick - How many pixels should we offset our drawing by to scroll the sections?
-unsigned long nextScrollUpdateMillis = 0; //Kick - When did we last update the scroll?
+unsigned long lastScrollUpdateMillis = 0; //Kick - When did we last update the scroll?
 
 
 unsigned long nextIdleStartMillis = 0; //The millis time to start the next idle animation at, calculated when the audio falls quiet or an idle anim starts
@@ -131,22 +143,35 @@ bool prevIdling = false; //Were we idling last time we checked if we were idling
 
 
 
+/**************************
+ * STEPMANIA IO VARIABLES * 
+ *************************/
+
+ //This code also works as an IO board for Stepmania-converted dance cabinets. These variables handle all that fun stuff:
+ const int maxKeycode = sizeof(keyIOCodes) / sizeof(keyIOCodes[0]) - 1; //Maximum keycode number we'll scan for
+
 /********************
  * FUNCTIONS N SHIZ *
  *******************/
 
 
 void setup() {
+  Keyboard.begin();
+  
   AudioMemory(16);
   Serial.begin(9600);
   LEDS.addLeds<WS2812, DATA_PIN_STRIP, GRB>(leds, STRIP_LENGTH);
   LEDS.setBrightness(84);
 
-  pinMode(3, INPUT_PULLUP); //Pinmode the debug buttons and debug light
+  pinMode(3, INPUT_PULLUP); //Pinmode the debug buttons, debug light, and neopixel output
   pinMode(4, INPUT_PULLUP);
   pinMode(5, INPUT_PULLUP);
-
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(DATA_PIN_STRIP, OUTPUT);
+
+  for (int i = 0; i <= maxKeycode; i++) { //Pinmode all the cabinet buttons we're gonna read
+    pinMode(keyIOPins[i], INPUT_PULLUP);
+  }
 
   setNewPalette(0); //Initialize palette-related variables
 
@@ -230,6 +255,26 @@ void loop() {
     }
     FastLED.show();
   }
+
+
+  for (int i = 0; i <= maxKeycode; i++) {
+    bool buttonState = !digitalRead(keyIOPins[i]); //Read the state of this button, and invert it (they're active low)
+    if (buttonState && !keyIOPressed[i]) { //Falling edge: We just pressed this button!
+      if (keyIOCodes[i] < 0) {
+        
+      } else {
+        Keyboard.press(keyIOCodes[i]);
+      }
+      keyIOPressed[i] = true;
+    } else if (!buttonState && keyIOPressed[i]) { //Rising edge: We just released this button!
+      if (keyIOCodes[i] < 0) {
+      
+      } else {
+        Keyboard.release(keyIOCodes[i]);
+      }
+      keyIOPressed[i] = false;
+    }
+  }
   delay(10);
 }
 
@@ -309,7 +354,7 @@ bool getBassKicked() {
   //if (abs((curBassValue / curBassPeakAverage)) >= 1.4  && abs((curBassValue - curBassPeakAverage)) >= 0.15 && curMillis >= lastBassKickMillis + 300) { //The bass section is above the average, is above a certain "volume" threshold, and some time has passed since the last kick
   if (bassKicked && curMillis >= lastBassKickMillis + 200) { //We detected a new peak earlier and it's been a bit since a bass kick
     lastBassKickMillis = curMillis;
-    Serial.println("6");
+    Serial.println("4");
     return true;
   }
   Serial.println("0");
@@ -329,13 +374,15 @@ float getBassKickProgress() {
 
   //The current implementation is really just an extension of getBassKicked for effects that "pulse to the beat"
   //Right now, bass kicks arbitrarily "happen" for a certain amount of time (a.k.a. 150ms)
-  //This function returns how close we are to the start of the 150ms window after the bass kick happens (1 - just started kick, 0 - 150ms has passed since kick)
+  //This function returns how close we are to the start of the 125ms window after the bass kick happens (1 - just started kick, 0 - 125ms has passed since kick)
   //Since this function pulls the time the last time getBassKicked() returned true, getBassKicked() MUST be called beforehand for this function to work!
   float kicking = 0;
 
-  if (curMillis <= lastBassKickMillis + 200) { kicking = 1 - ((float)(curMillis - lastBassKickMillis) / 200); } //Only calculate this value if we're still in the middle of the bass kick (and guaranteed to not return less than 0)
+  if (curMillis <= lastBassKickMillis + 125) { kicking = 1 - ((float)(curMillis - lastBassKickMillis) / 125); } //Only calculate this value if we're still in the middle of the bass kick (and guaranteed to not return less than 0)
   
   digitalWrite(LED_BUILTIN, kicking > 0); //Also light our debug LED while the bass kick is happening
+  analogWrite(PIN_BASS_LIGHT, kicking * 255); //Also (also) write our bass output while we're at it
+  
   //Serial.println(kicking);
   return kicking;
 }
@@ -438,6 +485,8 @@ void visualizePulse() {
     bass_scroll_pos = sectionSize[0];
   }
 
+  float bassKickProgress = getBassKickProgress(); //Store the current bass kick progress too - We'll use it a bunch!
+
   //If we're scrolling a bass kick outwards, update it
   if (bass_scroll_pos >= 1) {
     bass_scroll_pos++;
@@ -454,19 +503,19 @@ void visualizePulse() {
   //High offset: None - Start from 0 and increment upwards
   for (int i = 0; i < sectionSize[2]; i++) { //Set HIGH
     //leds[i] = curPalette[3]; //Static colors are boring, let's make them pulse to the beat!
-    leds[i] = blend(curPaletteDim[3], curPalette[3], getBassKickProgress()); //If the bass is kicking, blend in a bit of a brighter version of the current palette
+    leds[i] = blend(curPaletteDim[3], curPalette[3], bassKickProgress); //If the bass is kicking, blend in a bit of a brighter version of the current palette
   }
 
   short sectionOffset = STRIP_FOURTH - sectionSize[1] / 2; //Mid offset: 1/4 point on the strip (the center for this section) minus half of this section's size (to draw half on each side of the 1/4 point)
   for (int i = 0; i < sectionSize[1]; i++) { //Set MID
     //leds[i + sectionOffset] = curPalette[1];
-    leds[i + sectionOffset] = blend(curPaletteDim[1], curPalette[1], getBassKickProgress());
+    leds[i + sectionOffset] = blend(curPaletteDim[1], curPalette[1], bassKickProgress);
   }
 
   sectionOffset = STRIP_HALF - sectionSize[0]; //Bass offset: 1/2 point on the strip minus this section's size
   for (int i = 0; i < sectionSize[0]; i++) { //Set BASS
     //leds[i + sectionOffset] = curPalette[0];
-    leds[i + sectionOffset] = blend(curPaletteDim[0], curPalette[0], getBassKickProgress());
+    leds[i + sectionOffset] = blend(curPaletteDim[0], curPalette[0], bassKickProgress);
   } 
 
   //Finally, mirror the first half of the strip to the second half
@@ -492,7 +541,10 @@ void visualizePunch() {
   //Did the bass just kick? Start a new bass kick scroll from the end of the current bass section
   if (getBassKicked()) {
     bass_scroll_pos = sectionSize[0];
+    //bass_scroll_pos = 1;
   }
+
+  float bassKickProgress = getBassKickProgress(); //Store the current bass kick progress too - We'll use it a bunch!
 
   //If we're scrolling a bass kick outwards, update it
   if (bass_scroll_pos >= 1) {
@@ -504,29 +556,33 @@ void visualizePunch() {
     }
   }
 
+  /*Serial.print(sectionSize[0]);
+  Serial.print(" ");
+  Serial.println(bass_scroll_pos);*/
+
   //For each section to draw, iterate through the number of LEDs to draw. Then, find and add the offset to each LED to draw so it draws in the correct place on the strip
   short sectionOffset = STRIP_8TH + STRIP_16TH - sectionSize[2] / 2; //Mid: Offset 1/8 strip minus half this section's size
   for (int i = 0; i < sectionSize[2]; i++) { //Set MID
     //leds[i + sectionOffset] = curPalette[2];
-    leds[i + sectionOffset] = blend(curPaletteDim[2], curPalette[2], getBassKickProgress()); //If the bass is kicking, blend in a bit of a brighter version of the current palette
+    leds[i + sectionOffset] = blend(curPaletteDim[2], curPalette[2], bassKickProgress); //If the bass is kicking, blend in a bit of a brighter version of the current palette
   }
 
   sectionOffset = STRIP_8TH * 3 - STRIP_16TH - sectionSize[1] / 2; //Low: Offset 3/8 strip minus half this section's size
   for (int i = 0; i < sectionSize[1]; i++) { //Set LOW
     //leds[i + sectionOffset] = curPalette[1];
-    leds[i + sectionOffset] = blend(curPaletteDim[1], curPalette[1], getBassKickProgress());
+    leds[i + sectionOffset] = blend(curPaletteDim[1], curPalette[1], bassKickProgress);
   }
 
   //High: No offset - Start from 0 and increment upwards
   for (int i = 0; i < sectionSize[3]; i++) { //Set HIGH
     //leds[i] = curPalette[3];
-    leds[i] = blend(curPaletteDim[3], curPalette[3], getBassKickProgress());
+    leds[i] = blend(curPaletteDim[3], curPalette[3], bassKickProgress);
   }
   
   sectionOffset = STRIP_HALF - sectionSize[0]; //Bass: Offset 1/2 strip minus this section's size
   for (int i = 0; i < sectionSize[0]; i++) { //Set BASS
     //leds[i + sectionOffset] = curPalette[0];
-    leds[i + sectionOffset] = blend(curPaletteDim[0], curPalette[0], getBassKickProgress());
+    leds[i + sectionOffset] = blend(curPaletteDim[0], curPalette[0], bassKickProgress);
   } 
 
   //Finally, mirror the first half of the strip to the second half
@@ -548,7 +604,8 @@ void visualizeKick() {
   sectionSize[3] = getFFTSection(3);
 
   getBassKicked(); //Detect bass kick times (this value is unused, but it sets variables getBassKickProgress() requires, later)
-
+  float bassKickProgress = getBassKickProgress();
+  
   short curSection = 1; //Tracks the section we're drawing
   short curOffset = 0; //Tracks the first pixel of each non-bass section we draw
 
@@ -565,10 +622,11 @@ void visualizeKick() {
 
 
   //Is it time to update the scroll yet?
-  if (curMillis >= nextScrollUpdateMillis) {
-    nextScrollUpdateMillis = curMillis + (getBassKickProgress() > 0 ? 2 : 175); //Find the next time to update the scroll at - don't wait as long if the bass isn't kicking
+  if (curMillis >= lastScrollUpdateMillis + (bassKickProgress > 0 ? 2 : 250)) { //(Don't wait as long for an update if the bass isn't kicking)
+    lastScrollUpdateMillis = curMillis; //Record the time this update happened at as reference for timing the next update
     //avgBassSize = 0;
     scrollOffset++;
+    //scrollOffset += bassKickProgress > 0 ? 1 : 1; //Update the scroll offset - Offset it by more if we're kicking the bass
     if (scrollOffset > sectionSize[sectionOffset]) { //Scrolled an entire section's worth of pixels, now offset the section instead and reset the scroll
       sectionOffset--;
       scrollOffset = -sectionSize[wrapValue(sectionOffset, 1, 3)];
@@ -628,7 +686,7 @@ void visualizeKick() {
 
   //DEBUG: Turn on/off an LED if the bass is kicking
   /*leds[30] = CRGB::Black;
-  if (getBassKickProgress()) { leds[30] = CHSV(96, 255, 255);}
+  if (bassKickProgress > 1) { leds[30] = CHSV(96, 255, 255);}
   leds[31] = CRGB::Black; leds[29] = CRGB::Black;*/
   
 }
