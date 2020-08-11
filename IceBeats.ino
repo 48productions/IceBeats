@@ -25,16 +25,17 @@
 #define DEBUG_FFT_BINS true //Set true to test FFT section responsiveness - bin sections are mapped to the brightness of specific pixels
 
 
-#define PIN_BASS_LIGHT 23 //PWM-able light for the bass
+#define PIN_BASS_LIGHT 6 //PWM-able light for the bass
 
 
 // STEPMANIA IO (Keystrokes)
-//  Inputs we currently send: Service, Vol Up, P1 Start, P2 Start, P1 MLeft, P2 MLeft, P1 MRight, P2 MRight, P1 Sel, P2 Sel, Vol Down
+//  Inputs we currently send: Service, Vol Up, Vol Down
 //  This code automagically handles any keys you add to this list, just remember to assign it a keycode, a pin, and add entries to keyIOPressed[] as needed!
 
-const int keyIOCodes[] = {'`', -1, KEY_ENTER, KEYPAD_ENTER, 'q', KEYPAD_7, 'e', KEYPAD_9, '/', '-', -2}; //List of keycodes we can send to the PC this is plugged into
-const int keyIOPins[] = {15, 17, 7, 11, 6, 10, 8, 12, 9, 14, 18}; //List of IO pins we should read to send these above keycodes
-bool keyIOPressed[] = {false, false, false, false, false, false, false, false, false, false, false}; //Is xyz key currently pressed?
+const int keyIOCodes[] = {'`', -1, -2}; //List of keycodes we can send to the PC this is plugged into
+const int keyIOPins[] = {21, 22, 23}; //List of IO pins we should read to send these above keycodes
+bool keyIOPressed[] = {false, false, false}; //Is xyz key currently pressed?
+
 
 
 /*************************************************
@@ -140,7 +141,11 @@ unsigned long lastScrollUpdateMillis = 0; //Kick - When did we last update the s
 unsigned long nextIdleStartMillis = 0; //The millis time to start the next idle animation at, calculated when the audio falls quiet or an idle anim starts
 bool idling = false; //Are we currently idling? If so, don't render new visualization data on the strip
 bool prevIdling = false; //Were we idling last time we checked if we were idling?
+short idlePos = 0; //Position we are in the current idle animation - Animation is played when this is >= 1 and idling == true
+unsigned long nextIdleUpdateMillis = 0; //The next time we should update the idle animation at
+const short idleUpdateMs = 25; //How often should we update the idle animation?
 
+short idleCurHue = 0; //Current hue, used for idle effects
 
 
 /**************************
@@ -199,21 +204,24 @@ void loop() {
   
   if (peak.available()) { //We have peak data to read! READ IT!
     float curPeak = peak.read();
-    //Serial.println(peak);
     
     //First, determine if we should be starting an idle animation (audio has been quiet for a while)
-    idling = (curPeak <= 0.05);
-    if (idling == true && prevIdling == false) { //We just got a f a l l i n g  i d l i n g  e d g e (wat)
+    idling = (averagePeak.getAverage() <= 0.15);
+    if (idling == true && prevIdling == false) { //We just got a  f a l l i n g  i d l i n g  e d g e  (wat)
       nextIdleStartMillis = curMillis + 10000; //Start an idle anim in 10 seconds
+      
+    } else if (idling == false && prevIdling == true) { //We've stopped idling!
+      idlePos = 0; //Stop running the idle animation, there's SOUDN (prevents running the idle anim the instant we get no sound again instead of waiting 10 seconds)
     }
 
     if (idling) {
       if (curMillis >= nextIdleStartMillis) { //Time to start an idle animation!
         nextIdleStartMillis = curMillis + 60000; //Next idle animation should start in 60 seconds
+        idlePos = 1; //Kickstart the animation!
+        idleCurHue = 0;
       }
     }
     prevIdling = idling;
-
 
     //Now let's handle AGC - Theorhetically
     averagePeak.addValue(curPeak);
@@ -236,7 +244,7 @@ void loop() {
     }
   }
 
-  if (fft.available()) { //FFT has new data, let's visualize it!
+  if (!idling && fft.available()) { //FFT has new data and we aren't idling, let's visualize it!
     //bassPeakAverage.addValue(getFFTSection(0));
     shortBassAverage.addValue(getFFTSection(0));
     switch (curEffect) {
@@ -253,6 +261,19 @@ void loop() {
         visualizeKick();
         break;
     }
+    FastLED.show();
+
+    
+  } else if (idling && idlePos >= 1 && curMillis >= nextIdleUpdateMillis) { //We're idling, playing the idle animation, and it's time for an update!
+    nextIdleUpdateMillis = curMillis + idleUpdateMs;
+    idlePos++;
+    idleRainbowWave();
+    FastLED.show();
+
+    analogWrite(PIN_BASS_LIGHT, abs(255 * sin(0.05 * idlePos))); //Also pulse on and off the bass light
+    
+  } else { //No visualization or idle animation to run, just fade out the strip this cycle
+    fadeToBlackBy(leds, STRIP_LENGTH, 30);
     FastLED.show();
   }
 
@@ -339,14 +360,14 @@ bool getBassKicked() {
   lastBassChange = curBassChange; //Now store the last bass change and average for the next read
   lastShortBassAverage = curBassValue;
   
-  Serial.print(curBassValue * 3); //DEBUG: Print the current bass bin's value
+  /*Serial.print(curBassValue * 3); //DEBUG: Print the current bass bin's value
   Serial.print(" ");
   Serial.print(curBassPeakAverage * 20); //The average bass peak value
   Serial.print(" ");
   Serial.print(curBassPeakAverage * 0.85 * 20); //The threshold to trigger a bass kick (average peak * 0.85)
   Serial.print(" ");
   Serial.print(curBassChange * 20); //And the current amount the bass has changed this update
-  Serial.print(" ");
+  Serial.print(" ");*/
   /*Serial.print(" ");
   Serial.println(abs((curBassValue - curBassAverage)));*/
   //if (((curBassValue >= curBassAverage * 1.3 && curBassValue >= 0.15) || debug1.rose()) && curMillis >= lastBassKickMillis + 300) { //If the bass section just increased a ton (over a certain amount) or the debug button was pressed, return TRUE if we've also had a certain amount of time pass since the last kick
@@ -689,4 +710,28 @@ void visualizeKick() {
   if (bassKickProgress > 1) { leds[30] = CHSV(96, 255, 255);}
   leds[31] = CRGB::Black; leds[29] = CRGB::Black;*/
   
+}
+
+
+
+/**
+ * Idle effect: Rainbow Wave
+ * 
+ * Rainbowy waves of goodness wipe out and slowly recede in, like the ocean. Subsequent waves wipe farther out
+ */
+void idleRainbowWave() {
+  fadeToBlackBy(leds, STRIP_LENGTH, 90); //Fade out the last update from the strip a bit
+  short wavePos = abs(STRIP_HALF * sin(0.02 * idlePos)); //Where is the wave at during this update? Here it is!
+  idleCurHue += 10 * sin(-0.04 * idlePos); //Calculate how far to move the strip-wide hue shift
+  short huePos = idleCurHue; //And offset all further hues by this value
+  
+  for (int i = 0; i <= wavePos; i++) {
+    huePos += 15; //Draw each LED on the strip, shifting the hue a tad for each LED
+    leds[STRIP_HALF - i] = CHSV(huePos, 255, 255);
+  }
+  mirrorStrip(); //Finally, mirror the strip
+
+  if (idlePos >= 785) { //Roughly equal to 250pi (5 cycles), which is when we should stop this idle animation
+    idlePos = 0;
+  }
 }
