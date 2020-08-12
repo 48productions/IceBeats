@@ -26,6 +26,8 @@
 
 
 #define PIN_BASS_LIGHT 6 //PWM-able light for the bass
+#define PIN_BASS_SEL_1 7 //My setup uses an LED light string where alternating LEDs are driven by reverse polarities (drive at +29V for even lights, -29V for odd lights). These are driven using an H-bridge, these pins control the direction the lights are driven in.
+#define PIN_BASS_SEL_2 8
 
 
 // STEPMANIA IO (Keystrokes)
@@ -127,6 +129,10 @@ float lastShortBassAverage; //The short bass average last time it was checked, a
 float lastBassChange; //The last bass change last time it was checked. You know the drill.
 bool bassChangeIncreasing = true; //Is the bass change increasing or decreasing? Helps detect when it peaks.
 unsigned long lastBassKickMillis = 0; //Last time a bass kick happened
+bool isAlternateBassKick = false; //Alternates every time the bass is kicked, used for the alternating bass lights
+short bassBrightness; //Track the current and last brightnesses for the bass light, used for fading it out when music/idle animations stop
+short lastBassBrightness = 0;
+bool idleBassBrightnessDecreasing = false; //Is the bass brightness value increasing or decreasing?
 
 
 short bass_scroll_pos = 0; //Pulse/punch effects - The bass kick scroll's position and color
@@ -173,6 +179,9 @@ void setup() {
   pinMode(5, INPUT_PULLUP);
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(DATA_PIN_STRIP, OUTPUT);
+  pinMode(PIN_BASS_LIGHT, OUTPUT);
+  pinMode(PIN_BASS_SEL_1, OUTPUT);
+  pinMode(PIN_BASS_SEL_2, OUTPUT);
 
   for (int i = 0; i <= maxKeycode; i++) { //Pinmode all the cabinet buttons we're gonna read
     pinMode(keyIOPins[i], INPUT_PULLUP);
@@ -267,14 +276,21 @@ void loop() {
   } else if (idling && idlePos >= 1 && curMillis >= nextIdleUpdateMillis) { //We're idling, playing the idle animation, and it's time for an update!
     nextIdleUpdateMillis = curMillis + idleUpdateMs;
     idlePos++;
+
+    bassBrightness = abs(255 * sin(0.05 * idlePos)); //Let's also pulse on and off the bass light - calculate it's brightness
+    if (bassBrightness > lastBassBrightness && idleBassBrightnessDecreasing) { alternateBassSel(); idleBassBrightnessDecreasing = false; } //Have we just started increasing the brightness? Flip which bass light is in use
+    if (bassBrightness < lastBassBrightness && !idleBassBrightnessDecreasing) { idleBassBrightnessDecreasing = true; } //Also detect when we've just started decreasing, too
+    analogWrite(PIN_BASS_LIGHT, bassBrightness); //Finally write the bass brightness and record the last used bass brightness
+    lastBassBrightness = bassBrightness;
+
     idleRainbowWave();
     FastLED.show();
-
-    analogWrite(PIN_BASS_LIGHT, abs(255 * sin(0.05 * idlePos))); //Also pulse on and off the bass light
     
-  } else { //No visualization or idle animation to run, just fade out the strip this cycle
+  } else if (idling && idlePos < 1) { //Not running a visualization or idle animation (either finished an idle or just stopped getting sound), just fade out the strip and bass lightsthis cycle
     fadeToBlackBy(leds, STRIP_LENGTH, 30);
     FastLED.show();
+
+    if (bassBrightness > 0) { bassBrightness *= 0.8; analogWrite(PIN_BASS_LIGHT, bassBrightness); } //Did we not completely fade out the bass light during the last idle cycle? Let's keep fading it out here
   }
 
 
@@ -360,14 +376,14 @@ bool getBassKicked() {
   lastBassChange = curBassChange; //Now store the last bass change and average for the next read
   lastShortBassAverage = curBassValue;
   
-  /*Serial.print(curBassValue * 3); //DEBUG: Print the current bass bin's value
+  Serial.print(curBassValue * 6); //DEBUG: Print the current bass bin's value
   Serial.print(" ");
-  Serial.print(curBassPeakAverage * 20); //The average bass peak value
+  Serial.print(curBassPeakAverage * 40); //The average bass peak value
   Serial.print(" ");
-  Serial.print(curBassPeakAverage * 0.85 * 20); //The threshold to trigger a bass kick (average peak * 0.85)
+  Serial.print(curBassPeakAverage * 0.85 * 40); //The threshold to trigger a bass kick (average peak * 0.85)
   Serial.print(" ");
-  Serial.print(curBassChange * 20); //And the current amount the bass has changed this update
-  Serial.print(" ");*/
+  Serial.print(curBassChange * 40); //And the current amount the bass has changed this update
+  Serial.print(" ");
   /*Serial.print(" ");
   Serial.println(abs((curBassValue - curBassAverage)));*/
   //if (((curBassValue >= curBassAverage * 1.3 && curBassValue >= 0.15) || debug1.rose()) && curMillis >= lastBassKickMillis + 300) { //If the bass section just increased a ton (over a certain amount) or the debug button was pressed, return TRUE if we've also had a certain amount of time pass since the last kick
@@ -375,7 +391,8 @@ bool getBassKicked() {
   //if (abs((curBassValue / curBassPeakAverage)) >= 1.4  && abs((curBassValue - curBassPeakAverage)) >= 0.15 && curMillis >= lastBassKickMillis + 300) { //The bass section is above the average, is above a certain "volume" threshold, and some time has passed since the last kick
   if (bassKicked && curMillis >= lastBassKickMillis + 200) { //We detected a new peak earlier and it's been a bit since a bass kick
     lastBassKickMillis = curMillis;
-    Serial.println("4");
+    Serial.println("6");
+    alternateBassSel(); //Invert the alternating bass kick variable, drive the bass light selection pins
     return true;
   }
   Serial.println("0");
@@ -402,7 +419,8 @@ float getBassKickProgress() {
   if (curMillis <= lastBassKickMillis + 125) { kicking = 1 - ((float)(curMillis - lastBassKickMillis) / 125); } //Only calculate this value if we're still in the middle of the bass kick (and guaranteed to not return less than 0)
   
   digitalWrite(LED_BUILTIN, kicking > 0); //Also light our debug LED while the bass kick is happening
-  analogWrite(PIN_BASS_LIGHT, kicking * 255); //Also (also) write our bass output while we're at it
+  bassBrightness = kicking * 255; //Record the brightness of the bass light
+  analogWrite(PIN_BASS_LIGHT, bassBrightness); //Also (also) write our bass output while we're at it
   
   //Serial.println(kicking);
   return kicking;
@@ -449,6 +467,24 @@ short wrapValue(short val, short minVal, short maxVal) {
   while (val > maxVal) { val -= maxVal; }
   while (val < minVal) { val += maxVal; }
   return val;
+}
+
+
+/**
+ * Alternates the isAlternateBassKick variable and drives the bass selection pins
+ */
+void alternateBassSel() {
+  isAlternateBassKick = !isAlternateBassKick;
+  writeBassSel(isAlternateBassKick);
+}
+
+/**
+ * Writes the two bass light selection pins.
+ * One must be high and the other low, otherwise we get no output when the enable pin is high.
+ */
+void writeBassSel(bool sel) {
+  digitalWrite(PIN_BASS_SEL_1, sel);
+  digitalWrite(PIN_BASS_SEL_2, !sel);
 }
 
 
