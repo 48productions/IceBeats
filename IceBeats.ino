@@ -123,7 +123,7 @@ CHSV curPaletteDim[4] = palettes[0]; //A slightly dimmed version of the current 
 
 unsigned long curMillis = 0; //Current time
 
-RunningAverage bassPeakAverage(25); //Running average of detected bass peaks, used for bass kick detection
+RunningAverage bassChangeAverage(33); //Running average of detected bass peaks, used for bass kick detection
 RunningAverage shortBassAverage(3); //Shorter running average of the bass, smoothes out the wrinkles so we get  s m o o t h  l i n e s
 float lastShortBassAverage; //The short bass average last time it was checked, also used for bass kick detection
 float lastBassChange; //The last bass change last time it was checked. You know the drill.
@@ -170,6 +170,8 @@ void setup() {
   Keyboard.begin();
   
   AudioMemory(16);
+  fft.windowFunction(AudioWindowHamming1024);
+  
   Serial.begin(9600);
   LEDS.addLeds<WS2812, DATA_PIN_STRIP, GRB>(leds, STRIP_LENGTH);
   LEDS.setBrightness(84);
@@ -189,9 +191,9 @@ void setup() {
 
   setNewPalette(0); //Initialize palette-related variables
 
-  bassPeakAverage.clear(); //Clear out running averages for the bass
+  bassChangeAverage.clear(); //Clear out running averages for the bass
   shortBassAverage.clear();
-  bassPeakAverage.addValue(0); //And add some initial data to the peak average
+  bassChangeAverage.addValue(0); //And add some initial data to the peak average
   averagePeak.clear();
 }
 
@@ -254,7 +256,7 @@ void loop() {
   }
 
   if (!idling && fft.available()) { //FFT has new data and we aren't idling, let's visualize it!
-    //bassPeakAverage.addValue(getFFTSection(0));
+    //bassChangeAverage.addValue(getFFTSection(0));
     shortBassAverage.addValue(getFFTSection(0));
     switch (curEffect) {
       case VEDebugFFT:
@@ -355,22 +357,21 @@ float getFFTSection(int id) {
  */
 bool getBassKicked() {
   float curBassValue = shortBassAverage.getAverage(); //Get the current value (short average) and (longer) running average of the bass section
-  float curBassPeakAverage = bassPeakAverage.getAverage();
-  float curBassChange = abs((curBassValue - lastShortBassAverage)); //Also find out how much the bass value changed this read
+  //float curBassValue = getFFTSection(0);
+  float curBassChange = max(curBassValue - lastShortBassAverage, 0); //Also find out how much the bass value changed this read
+  //float curBassChange = abs(curBassValue - lastShortBassAverage); //Also find out how much the bass value changed this read
+  //if (curBassChange > 0) { 
+    bassChangeAverage.addValue(curBassChange);
+  //}
+  float curBassChangeAverage = bassChangeAverage.getAverage();
   bool bassKicked = false;
 
-  if (bassChangeIncreasing && curBassChange < lastBassChange) { //We were going up but are now going down, record a peak
-    bassChangeIncreasing = false;
-    if (lastBassChange >= curBassPeakAverage * 0.85) { //Our new bass peak should be either greater than or at least *mostly* close to the current peak average (within 80%) to get rid of some super tiny unimportant bass spikes
-      bassPeakAverage.addValue(lastBassChange);
-      bassKicked = true;
-      
-    } else if (curMillis >= lastBassKickMillis + 650) { //No bass kicks in a while, our peak average is probably too high, so let's try lowering it
-      bassPeakAverage.addValue(curBassPeakAverage * 0.8);
-    }
+  if (curBassChange >= curBassChangeAverage * 3.5 && curBassChangeAverage >= 0.015) { //Did our bass change enough above the average (and above an arbitrary "volume" threshold)?
+    //bassChangeAverage.addValue(lastBassChange);
+    bassKicked = true;
     
-  } else if (!bassChangeIncreasing && curBassChange > lastBassChange) { //We were going down but are now going up, how fun
-    bassChangeIncreasing = true;
+  } else if (curMillis >= lastBassKickMillis + 650) { //No bass kicks in a while, our peak average is probably too high, so let's try lowering it
+    //bassChangeAverage.addValue(curBassChangeAverage * 0.8);
   }
   
   lastBassChange = curBassChange; //Now store the last bass change and average for the next read
@@ -378,20 +379,20 @@ bool getBassKicked() {
   
   Serial.print(curBassValue * 6); //DEBUG: Print the current bass bin's value
   Serial.print(" ");
-  Serial.print(curBassPeakAverage * 40); //The average bass peak value
+  Serial.print(curBassChangeAverage * 12); //The average bass peak value
   Serial.print(" ");
-  Serial.print(curBassPeakAverage * 0.85 * 40); //The threshold to trigger a bass kick (average peak * 0.85)
+  Serial.print(curBassChangeAverage * 12 * 3.5); //The threshold to trigger a bass kick
   Serial.print(" ");
-  Serial.print(curBassChange * 40); //And the current amount the bass has changed this update
+  Serial.print(curBassChange * 12); //And the current amount the bass has changed this update
   Serial.print(" ");
   /*Serial.print(" ");
   Serial.println(abs((curBassValue - curBassAverage)));*/
   //if (((curBassValue >= curBassAverage * 1.3 && curBassValue >= 0.15) || debug1.rose()) && curMillis >= lastBassKickMillis + 300) { //If the bass section just increased a ton (over a certain amount) or the debug button was pressed, return TRUE if we've also had a certain amount of time pass since the last kick
   //if ((curBassValue >= curBassAverage * 1.3 && curBassValue >= 0.15) && curMillis >= lastBassKickMillis + 300) {
-  //if (abs((curBassValue / curBassPeakAverage)) >= 1.4  && abs((curBassValue - curBassPeakAverage)) >= 0.15 && curMillis >= lastBassKickMillis + 300) { //The bass section is above the average, is above a certain "volume" threshold, and some time has passed since the last kick
+  //if (abs((curBassValue / curBassChangeAverage)) >= 1.4  && abs((curBassValue - curBassChangeAverage)) >= 0.15 && curMillis >= lastBassKickMillis + 300) { //The bass section is above the average, is above a certain "volume" threshold, and some time has passed since the last kick
   if (bassKicked && curMillis >= lastBassKickMillis + 200) { //We detected a new peak earlier and it's been a bit since a bass kick
     lastBassKickMillis = curMillis;
-    Serial.println("6");
+    Serial.println("3");
     alternateBassSel(); //Invert the alternating bass kick variable, drive the bass light selection pins
     return true;
   }
@@ -406,7 +407,7 @@ bool getBassKicked() {
  */
 float getBassKickProgress() {
   /*float curBassValue = getFFTSection(0); //Old implementation: Have we met similar criteria for a regular bass kick to happen?
-  float curBassAverage = bassPeakAverage.getAverage();
+  float curBassAverage = bassChangeAverage.getAverage();
   bool kicking = (curBassValue >= curBassAverage * 1.35 && curBassValue >= 0.15) || !debug2.read();*/
   //bool kicking = curMillis <= lastBassKickMillis + 150;
 
