@@ -29,6 +29,10 @@
 #define PIN_BASS_SEL_1 7 //My setup uses an LED light string where alternating LEDs are driven by reverse polarities (drive at +29V for even lights, -29V for odd lights). These are driven using an H-bridge, these pins control the direction the lights are driven in.
 #define PIN_BASS_SEL_2 8
 
+#define PIN_DEBUG_0 0
+#define PIN_DEBUG_1 1
+#define PIN_DEBUG_2 2
+
 
 // STEPMANIA IO (Keystrokes)
 //  Inputs we currently send: Service, Vol Up, Vol Down
@@ -83,9 +87,9 @@ AudioConnection          patchCord3(amp, peak);
 
 CRGB leds[STRIP_LENGTH];
 
-Bounce debug0 = Bounce(4, 5); //DEBUG 0: Swap palette
-Bounce debug1 = Bounce(3, 5); //DEBUG 1: Force bass kick/Swap visualization effect
-Bounce debug2 = Bounce(2, 5); //DEBUG 2: Force getBassKickProgress() (can also force all FFT section reads, uncomment below)
+Bounce debug0 = Bounce(PIN_DEBUG_0, 5); //DEBUG 0: Lighting test button
+Bounce debug1 = Bounce(PIN_DEBUG_1, 5); //DEBUG 1: Swap visualization effect
+Bounce debug2 = Bounce(PIN_DEBUG_2, 5); //DEBUG 2: Force getBassKickProgress() (can also force all FFT section reads, uncomment below)
 
 RunningAverage averagePeak(10); //The average measured peak, used for AGC
 float curGain = 1; //Current gain to use, used for AGC
@@ -129,6 +133,7 @@ float lastShortBassAverage; //The short bass average last time it was checked, a
 float lastBassChange; //The last bass change last time it was checked. You know the drill.
 bool bassChangeIncreasing = true; //Is the bass change increasing or decreasing? Helps detect when it peaks.
 unsigned long lastBassKickMillis = 0; //Last time a bass kick happened
+RunningAverage bassKickLengthAverage(2); //Yet another running average the time between bass kicks
 bool isAlternateBassKick = false; //Alternates every time the bass is kicked, used for the alternating bass lights
 short bassBrightness; //Track the current and last brightnesses for the bass light, used for fading it out when music/idle animations stop
 short lastBassBrightness = 0;
@@ -153,6 +158,13 @@ const short idleUpdateMs = 25; //How often should we update the idle animation?
 
 short idleCurHue = 0; //Current hue, used for idle effects
 
+bool lightTestEnabled = false; //If we're currently in the lighting test or not, and when we entered it
+unsigned long lightTestStartMillis = 0; //Also track some timestamps of when some updates last occured
+unsigned long lightTestLastToggleMillis = 0;
+unsigned long lightTestLastStripUpdateMillis = 0;
+short lightTestStripPos = 0; //...and some other variables to track the state of the LED strip test
+short lightTestStripColor = 0;
+
 
 /**************************
  * STEPMANIA IO VARIABLES * 
@@ -176,9 +188,9 @@ void setup() {
   LEDS.addLeds<WS2812, DATA_PIN_STRIP, GRB>(leds, STRIP_LENGTH);
   LEDS.setBrightness(84);
 
-  pinMode(3, INPUT_PULLUP); //Pinmode the debug buttons, debug light, and neopixel output
-  pinMode(4, INPUT_PULLUP);
-  pinMode(5, INPUT_PULLUP);
+  pinMode(PIN_DEBUG_0, INPUT_PULLUP); //Pinmode the debug buttons, debug light, and neopixel output
+  pinMode(PIN_DEBUG_1, INPUT_PULLUP);
+  pinMode(PIN_DEBUG_2, INPUT_PULLUP);
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(DATA_PIN_STRIP, OUTPUT);
   pinMode(PIN_BASS_LIGHT, OUTPUT);
@@ -195,107 +207,145 @@ void setup() {
   shortBassAverage.clear();
   bassChangeAverage.addValue(0); //And add some initial data to the peak average
   averagePeak.clear();
+  bassKickLengthAverage.clear();
 }
 
 
 void loop() {
+  curMillis = millis();
+  
   debug0.update();
   debug1.update();
   debug2.update();
 
-  if (debug0.rose()) { //Debug 0 pressed, swap to a new color palette
+  if (debug2.fell()) { //Debug 2 pressed, swap to a new color palette
     setNewPalette(curPaletteIndex + 1);
   }
 
-  if (debug1.rose()) { //Debug 1 pressed, swap to a new visualization effect
+  if (debug1.fell()) { //Debug 1 pressed, swap to a new visualization effect
     setNewVE(curEffect + 1);
   }
 
-  curMillis = millis();
-  
-  if (peak.available()) { //We have peak data to read! READ IT!
-    float curPeak = peak.read();
+  if (debug0.fell()) { //Debug 0 pressed, toggle lighting test mode
+    lightTestEnabled = !lightTestEnabled;
+    if (lightTestEnabled) { //Going into the light test, set some variables to prepare for it
+      lightTestStartMillis = curMillis;
+      analogWrite(PIN_BASS_LIGHT, 255);
+      lightTestStripPos = 0;
+      lightTestStripColor = 0;
+      FastLED.clear(); //Clear the LED strip for the test:tm:
+    }
+  }
+
+
+  if (lightTestEnabled) { //In the lighting test, update some lights boi
+    if (curMillis - lightTestStartMillis >= 300000)  { //A lotta time has passed since we started the light test, let's just exit it now
+      lightTestEnabled = false;
+    }
     
-    //First, determine if we should be starting an idle animation (audio has been quiet for a while)
-    idling = (averagePeak.getAverage() <= 0.15);
-    if (idling == true && prevIdling == false) { //We just got a  f a l l i n g  i d l i n g  e d g e  (wat)
-      nextIdleStartMillis = curMillis + 10000; //Start an idle anim in 10 seconds
-      
-    } else if (idling == false && prevIdling == true) { //We've stopped idling!
-      idlePos = 0; //Stop running the idle animation, there's SOUDN (prevents running the idle anim the instant we get no sound again instead of waiting 10 seconds)
+    if (curMillis - lightTestLastToggleMillis >= 500) { //500ms has passed, toggle the digital cabinet lights
+      alternateBassSel();
+      lightTestLastToggleMillis = curMillis;
     }
 
-    if (idling) {
-      if (curMillis >= nextIdleStartMillis) { //Time to start an idle animation!
-        nextIdleStartMillis = curMillis + 60000; //Next idle animation should start in 60 seconds
-        idlePos = 1; //Kickstart the animation!
-        idleCurHue = 0;
+    if (curMillis - lightTestLastStripUpdateMillis >= 25) { //Time to update the LED strip!
+      lightTestLastStripUpdateMillis = curMillis;
+      lightTestStripPos++;
+      if (lightTestStripPos >= STRIP_LENGTH) { //Wiped a color onto the entire strip, reset to the beginning of the strip using a new color
+        lightTestStripPos = 0;
+        lightTestStripColor++;
+        if (lightTestStripColor >= 8) { lightTestStripColor = 0; }
+      }
+
+      leds[lightTestStripPos] = getLightTestStripColor();
+      FastLED.show();
+    }
+    
+  } else { //Not in the lighting test, update visualizations/idles/etc
+    if (peak.available()) { //We have peak data to read! READ IT!
+      float curPeak = peak.read();
+      
+      //First, determine if we should be starting an idle animation (audio has been quiet for a while)
+      idling = (averagePeak.getAverage() <= 0.15);
+      if (idling == true && prevIdling == false) { //We just got a  f a l l i n g  i d l i n g  e d g e  (wat)
+        nextIdleStartMillis = curMillis + 10000; //Start an idle anim in 10 seconds
+        
+      } else if (idling == false && prevIdling == true) { //We've stopped idling!
+        idlePos = 0; //Stop running the idle animation, there's SOUDN (prevents running the idle anim the instant we get no sound again instead of waiting 10 seconds)
+      }
+  
+      if (idling) {
+        if (curMillis >= nextIdleStartMillis) { //Time to start an idle animation!
+          nextIdleStartMillis = curMillis + 60000; //Next idle animation should start in 60 seconds
+          idlePos = 1; //Kickstart the animation!
+          idleCurHue = 0;
+        }
+      }
+      prevIdling = idling;
+  
+      //Now let's handle AGC - Theorhetically
+      averagePeak.addValue(curPeak);
+      
+      if (averagePeak.getAverage() > 0.75) { //LOUD MUSIC
+        curGain *= 0.98; //Reduce gain, update the amp!
+        amp.gain(curGain);
+        
+      } else if (averagePeak.getAverage() < 0.75 && curGain <= 4) { //we quiet bois and we haven't gotten HYPER LOUD yet
+        curGain *= 1.001; //Slightly increase gain, update amp
+        amp.gain(curGain);
+      }
+      /*Serial.print(curPeak);
+      Serial.print(" ");
+      Serial.println(curGain);*/
+      
+      
+      if (curEffect == VEDebugFFT) { //Debugging the FFT? Map the peak to the first pixel!
+        leds[0] = CHSV(0, 0, curPeak * 255);
       }
     }
-    prevIdling = idling;
-
-    //Now let's handle AGC - Theorhetically
-    averagePeak.addValue(curPeak);
-    
-    if (averagePeak.getAverage() > 0.75) { //LOUD MUSIC
-      curGain *= 0.98; //Reduce gain, update the amp!
-      amp.gain(curGain);
+  
+    if (!idling && fft.available()) { //FFT has new data and we aren't idling, let's visualize it!
+     //bassChangeAverage.addValue(getFFTSection(0));
+      shortBassAverage.addValue(getFFTSection(0));
+      switch (curEffect) {
+        case VEDebugFFT:
+          visualizeFFTDebug();
+          break;
+        case VEPulse:
+          visualizePulse();
+          break;
+        case VEPunch:
+          visualizePunch();
+          break;
+        case VEKick:
+          visualizeKick();
+          break;
+      }
+      FastLED.show();
+  
       
-    } else if (averagePeak.getAverage() < 0.75 && curGain <= 4) { //we quiet bois and we haven't gotten HYPER LOUD yet
-      curGain *= 1.001; //Slightly increase gain, update amp
-      amp.gain(curGain);
+    } else if (idling && idlePos >= 1 && curMillis >= nextIdleUpdateMillis) { //We're idling, playing the idle animation, and it's time for an update!
+      nextIdleUpdateMillis = curMillis + idleUpdateMs;
+      idlePos++;
+  
+      bassBrightness = abs(255 * sin(0.05 * idlePos)); //Let's also pulse on and off the bass light - calculate it's brightness
+      if (bassBrightness > lastBassBrightness && idleBassBrightnessDecreasing) { alternateBassSel(); idleBassBrightnessDecreasing = false; } //Have we just started increasing the brightness? Flip which bass light is in use
+      if (bassBrightness < lastBassBrightness && !idleBassBrightnessDecreasing) { idleBassBrightnessDecreasing = true; } //Also detect when we've just started decreasing, too
+      analogWrite(PIN_BASS_LIGHT, bassBrightness); //Finally write the bass brightness and record the last used bass brightness
+      lastBassBrightness = bassBrightness;
+  
+      idleRainbowWave();
+      FastLED.show();
+      
+    } else if (idling && idlePos < 1) { //Not running a visualization or idle animation (either finished an idle or just stopped getting sound), just fade out the strip and bass lightsthis cycle
+      fadeToBlackBy(leds, STRIP_LENGTH, 30);
+      FastLED.show();
+  
+      if (bassBrightness > 0) { bassBrightness *= 0.8; analogWrite(PIN_BASS_LIGHT, bassBrightness); } //Did we not completely fade out the bass light during the last idle cycle? Let's keep fading it out here
     }
-    /*Serial.print(curPeak);
-    Serial.print(" ");
-    Serial.println(curGain);*/
-    
-    
-    if (curEffect == VEDebugFFT) { //Debugging the FFT? Map the peak to the first pixel!
-      leds[0] = CHSV(0, 0, curPeak * 255);
-    }
+  
   }
-
-  if (!idling && fft.available()) { //FFT has new data and we aren't idling, let's visualize it!
-    //bassChangeAverage.addValue(getFFTSection(0));
-    shortBassAverage.addValue(getFFTSection(0));
-    switch (curEffect) {
-      case VEDebugFFT:
-        visualizeFFTDebug();
-        break;
-      case VEPulse:
-        visualizePulse();
-        break;
-      case VEPunch:
-        visualizePunch();
-        break;
-      case VEKick:
-        visualizeKick();
-        break;
-    }
-    FastLED.show();
-
-    
-  } else if (idling && idlePos >= 1 && curMillis >= nextIdleUpdateMillis) { //We're idling, playing the idle animation, and it's time for an update!
-    nextIdleUpdateMillis = curMillis + idleUpdateMs;
-    idlePos++;
-
-    bassBrightness = abs(255 * sin(0.05 * idlePos)); //Let's also pulse on and off the bass light - calculate it's brightness
-    if (bassBrightness > lastBassBrightness && idleBassBrightnessDecreasing) { alternateBassSel(); idleBassBrightnessDecreasing = false; } //Have we just started increasing the brightness? Flip which bass light is in use
-    if (bassBrightness < lastBassBrightness && !idleBassBrightnessDecreasing) { idleBassBrightnessDecreasing = true; } //Also detect when we've just started decreasing, too
-    analogWrite(PIN_BASS_LIGHT, bassBrightness); //Finally write the bass brightness and record the last used bass brightness
-    lastBassBrightness = bassBrightness;
-
-    idleRainbowWave();
-    FastLED.show();
-    
-  } else if (idling && idlePos < 1) { //Not running a visualization or idle animation (either finished an idle or just stopped getting sound), just fade out the strip and bass lightsthis cycle
-    fadeToBlackBy(leds, STRIP_LENGTH, 30);
-    FastLED.show();
-
-    if (bassBrightness > 0) { bassBrightness *= 0.8; analogWrite(PIN_BASS_LIGHT, bassBrightness); } //Did we not completely fade out the bass light during the last idle cycle? Let's keep fading it out here
-  }
-
-
+  
   for (int i = 0; i <= maxKeycode; i++) {
     bool buttonState = !digitalRead(keyIOPins[i]); //Read the state of this button, and invert it (they're active low)
     if (buttonState && !keyIOPressed[i]) { //Falling edge: We just pressed this button!
@@ -337,13 +387,13 @@ float getFFTSection(int id) {
   //if (!debug2.read()) { return 1; } //Holding debug 2? Make all FFT sections return their max value
   
   switch (id) { //Switch based on the id of the section to get. Each Teensy FFT bin is 43Hz wide, and we get groups of bins for each section.
-    case 0: //Bass bin - 129-172Hz
+    case 0: //Bass bin - 43Hz-86Hz
       return constrain(fft.read(1) * 2, 0, 1);
-    case 1: //Low - 500-1.5kHz
+    case 1: //Low - 473-1.462kHz
       return constrain(fft.read(11, 34) / 1.25, 0, 1);
-    case 2: //Mid - 1.5-5k
+    case 2: //Mid - 1.505-5.031k
       return constrain(fft.read(35, 117) / 1.5, 0, 1);
-    case 3: //High - 6k-12.04k
+    case 3: //High - 6.02k-12.04k
       return constrain(fft.read(140, 280), 0, 1);
     default:
       return 0;
@@ -366,37 +416,33 @@ bool getBassKicked() {
   float curBassChangeAverage = bassChangeAverage.getAverage();
   bool bassKicked = false;
 
-  if (curBassChange >= curBassChangeAverage * 3.5 && curBassChangeAverage >= 0.015) { //Did our bass change enough above the average (and above an arbitrary "volume" threshold)?
+  if (curBassChange >= curBassChangeAverage * 3.45 && curBassChangeAverage >= 0.007) { //Did our bass change enough above the average (and above an arbitrary "volume" threshold)?
     //bassChangeAverage.addValue(lastBassChange);
-    bassKicked = true;
-    
-  } else if (curMillis >= lastBassKickMillis + 650) { //No bass kicks in a while, our peak average is probably too high, so let's try lowering it
-    //bassChangeAverage.addValue(curBassChangeAverage * 0.8);
+    bassKicked = true; 
   }
   
   lastBassChange = curBassChange; //Now store the last bass change and average for the next read
   lastShortBassAverage = curBassValue;
   
-  Serial.print(curBassValue * 6); //DEBUG: Print the current bass bin's value
+  /*Serial.print(curBassValue * 6); //DEBUG: Print the current bass bin's value
   Serial.print(" ");
   Serial.print(curBassChangeAverage * 12); //The average bass peak value
   Serial.print(" ");
-  Serial.print(curBassChangeAverage * 12 * 3.5); //The threshold to trigger a bass kick
+  Serial.print(curBassChangeAverage * 12 * 3.45); //The threshold to trigger a bass kick
   Serial.print(" ");
   Serial.print(curBassChange * 12); //And the current amount the bass has changed this update
   Serial.print(" ");
   /*Serial.print(" ");
   Serial.println(abs((curBassValue - curBassAverage)));*/
-  //if (((curBassValue >= curBassAverage * 1.3 && curBassValue >= 0.15) || debug1.rose()) && curMillis >= lastBassKickMillis + 300) { //If the bass section just increased a ton (over a certain amount) or the debug button was pressed, return TRUE if we've also had a certain amount of time pass since the last kick
-  //if ((curBassValue >= curBassAverage * 1.3 && curBassValue >= 0.15) && curMillis >= lastBassKickMillis + 300) {
-  //if (abs((curBassValue / curBassChangeAverage)) >= 1.4  && abs((curBassValue - curBassChangeAverage)) >= 0.15 && curMillis >= lastBassKickMillis + 300) { //The bass section is above the average, is above a certain "volume" threshold, and some time has passed since the last kick
+  
   if (bassKicked && curMillis >= lastBassKickMillis + 200) { //We detected a new peak earlier and it's been a bit since a bass kick
-    lastBassKickMillis = curMillis;
-    Serial.println("3");
+    bassKickLengthAverage.addValue(curMillis - lastBassKickMillis); //Add the time between the last kick and now to the average bass kick length
+    lastBassKickMillis = curMillis; //Start a new bass kick!
+    //Serial.println("3");
     alternateBassSel(); //Invert the alternating bass kick variable, drive the bass light selection pins
     return true;
   }
-  Serial.println("0");
+  //Serial.println("0");
   return false;
 }
 
@@ -412,15 +458,17 @@ float getBassKickProgress() {
   //bool kicking = curMillis <= lastBassKickMillis + 150;
 
   //The current implementation is really just an extension of getBassKicked for effects that "pulse to the beat"
-  //Right now, bass kicks arbitrarily "happen" for a certain amount of time (a.k.a. 150ms)
-  //This function returns how close we are to the start of the 125ms window after the bass kick happens (1 - just started kick, 0 - 125ms has passed since kick)
+  //Right now, bass kicks "happen" for 1/3 of the average time between the last few bass kicks
+  //This function returns how close we are to the start of the x ms-wide window after the bass kick happens (1 - just started kick, 0 - x ms has passed since kick)
   //Since this function pulls the time the last time getBassKicked() returned true, getBassKicked() MUST be called beforehand for this function to work!
   float kicking = 0;
-
-  if (curMillis <= lastBassKickMillis + 125) { kicking = 1 - ((float)(curMillis - lastBassKickMillis) / 125); } //Only calculate this value if we're still in the middle of the bass kick (and guaranteed to not return less than 0)
+  int kickLength = min(bassKickLengthAverage.getAverage() / 3, 500); //Find the average kick length here, cap it at 500ms so we don't get uber long bass kicks
+  //Serial.println(kickLength);
+  //if (curMillis <= lastBassKickMillis + 125) { kicking = 1 - ((float)(curMillis - lastBassKickMillis) / 125); } //Only calculate this value if we're still in the middle of the bass kick (and guaranteed to not return less than 0)
+  if (curMillis <= lastBassKickMillis + kickLength) { kicking = 1 - ((float)(curMillis - lastBassKickMillis) / kickLength); } //Only calculate this value if we're still in the middle of the bass kick (and guaranteed to not return less than 0)
   
-  digitalWrite(LED_BUILTIN, kicking > 0); //Also light our debug LED while the bass kick is happening
-  bassBrightness = kicking * 255; //Record the brightness of the bass light
+  //digitalWrite(LED_BUILTIN, kicking > 0); //Also light our debug LED while the bass kick is happening
+  bassBrightness = kicking * 255; //Record the brightness of the bass light (for use with other functions)
   analogWrite(PIN_BASS_LIGHT, bassBrightness); //Also (also) write our bass output while we're at it
   
   //Serial.println(kicking);
@@ -432,13 +480,13 @@ float getBassKickProgress() {
  * Sets a new color palette to use
  */
 void setNewPalette(int paletteId) {
-  curPaletteIndex = paletteId;
-  if (curPaletteIndex < 0) { curPaletteIndex = MAX_PALETTE; } //Wrap around palette values in case we lazily just give this function "curPalette + 1"
-  if (curPaletteIndex > MAX_PALETTE) { curPaletteIndex = 0; }
+  curPaletteIndex = wrapValue(paletteId, 0, MAX_PALETTE); //Wrap around palette values in case we lazily just give this function "curPalette + 1"
+  //if (curPaletteIndex < 0) { curPaletteIndex = MAX_PALETTE; }
+  //if (curPaletteIndex > MAX_PALETTE) { curPaletteIndex = 0; }
   memcpy(curPalette, palettes[curPaletteIndex], sizeof(curPalette)); //Copy the contents of the new palette to use to curPalette[]
   
   for (short i = 0; i <= 3; i++) { //Also set the current dim palette's values to be a dim version of the current palette
-    curPaletteDim[i] = CHSV(curPalette[i].h, curPalette[i].s, curPalette[i].v * 0.6);
+    curPaletteDim[i] = CHSV(curPalette[i].h, curPalette[i].s * 0.55, curPalette[i].v * 0.6);
   }
 
   if (curEffect == VEPulse) { //Visualizing pulse or punch, also set the color to use for bass kicks
@@ -479,6 +527,7 @@ void alternateBassSel() {
   writeBassSel(isAlternateBassKick);
 }
 
+
 /**
  * Writes the two bass light selection pins.
  * One must be high and the other low, otherwise we get no output when the enable pin is high.
@@ -487,6 +536,40 @@ void writeBassSel(bool sel) {
   digitalWrite(PIN_BASS_SEL_1, sel);
   digitalWrite(PIN_BASS_SEL_2, !sel);
 }
+
+
+/**
+ * Gets a CRGB color for the LED strip light test
+ */
+CRGB getLightTestStripColor() {
+  switch (lightTestStripColor) {
+    case 0:
+      return CRGB::Red;
+      break;
+    case 1:
+      return CRGB::Green;
+      break;
+    case 2:
+      return CRGB::Blue;
+      break;
+    case 3:
+      return CRGB::Cyan;
+      break;
+    case 4:
+      return CRGB::Magenta;
+      break;
+    case 5:
+      return CRGB::Yellow;
+      break;
+    case 6:
+      return CRGB::White;
+      break;
+    default:
+      return CRGB::Black;
+  }
+}
+
+
 
 
 /**
@@ -543,7 +626,7 @@ void visualizePulse() {
     bass_scroll_pos = sectionSize[0];
   }
 
-  float bassKickProgress = getBassKickProgress(); //Store the current bass kick progress too - We'll use it a bunch!
+  float bassKickProgress = getBassKickProgress() * 255; //Store the current bass kick progress too - We'll use it a bunch!
 
   //If we're scrolling a bass kick outwards, update it
   if (bass_scroll_pos >= 1) {
@@ -602,7 +685,7 @@ void visualizePunch() {
     //bass_scroll_pos = 1;
   }
 
-  float bassKickProgress = getBassKickProgress(); //Store the current bass kick progress too - We'll use it a bunch!
+  float bassKickProgress = getBassKickProgress() * 255; //Store the current bass kick progress too - We'll use it a bunch!
 
   //If we're scrolling a bass kick outwards, update it
   if (bass_scroll_pos >= 1) {
@@ -655,11 +738,12 @@ void visualizePunch() {
  * Other sections always scrolling outward, speed varies depending on bass value
  */
 void visualizeKick() {
-  float sectionSize[] = {0, 0, 0, 0}; //Size of each visualization section
+  short sectionSize[] = {0, 0, 0, 0}; //Size of each visualization section (pixels)
+  float rawSectionSize[] = {0, 0, 0, 0}; //Size of each section (0-1)
   sectionSize[0] = getFFTSection(0) * KICK_MAX_SIZE_BASS; //Bass section's size is directly proportional to it's FFT section's value
-  sectionSize[1] = getFFTSection(1); //The other sections are proportional in size to each other - We'll sum their values and find out how big of a percentage of the sum each section is to find their size in pixels
-  sectionSize[2] = getFFTSection(2);
-  sectionSize[3] = getFFTSection(3);
+  rawSectionSize[1] = getFFTSection(1); //The other sections are proportional in size to each other - We'll sum their values and find out how big of a percentage of the sum each section is to find their size in pixels
+  rawSectionSize[2] = getFFTSection(2);
+  rawSectionSize[3] = getFFTSection(3);
 
   getBassKicked(); //Detect bass kick times (this value is unused, but it sets variables getBassKickProgress() requires, later)
   float bassKickProgress = getBassKickProgress();
@@ -671,10 +755,10 @@ void visualizeKick() {
 
   //Serial.println(avgBassSize);
 
-  float sectionSum = sectionSize[1] + sectionSize[2] + sectionSize[3]; //Let's find the percentage each non-bass section takes up (and each section's size in pixels)! First find the sum...
+  float rawSectionSum = rawSectionSize[1] + rawSectionSize[2] + rawSectionSize[3]; //Let's find the percentage each non-bass section takes up (and each section's size in pixels)! First find the sum...
   //short nonBassSize = STRIP_HALF - avgBassSize; //...then find out how much non-bass area there is on the strip to draw these other sections to
   for (int i = 1; i <= 3; i++) {
-    sectionSize[i] = (sectionSize[i] / sectionSum) * STRIP_FOURTH; //...then divide each section by the sum to find their percentage of the sum
+    sectionSize[i] = (rawSectionSize[i] / rawSectionSum) * STRIP_FOURTH; //...then divide each section by the sum to find their percentage of the sum
     //Finally, multiply each section's size by the area on the strip to draw all the non-bass sections to to get how big each section is in pixels
   }
 
@@ -693,28 +777,17 @@ void visualizeKick() {
   }
 
 
-  //Step 1: Draw the bass section of the strip
   int i = 0; //i is used throughout the rest of this routine, declare/initialize it here
-  /*for (; i <= sectionSize[0]; i++) {
-    leds[STRIP_HALF - i] = curPalette[0];
-  }
-
-  if (i <= avgBassSize - 2) { //Step 2: If we're before the point to start drawing the non-bass sections, skip ahead to that point
-    i = avgBassSize;
-  } else { //Otherwise, skip a few pixels before drawing the next sections
-    i += 3;
-  }*/
-
   curOffset = scrollOffset; //Start tracking the beginning of each section we're drawing...
   curSection = sectionOffset; //...and start drawing a new section based on the current section offset
   
-  //Step 3: Pick up where we left off and iterate through the strip half mark to find the color each strip pixel should be
+  //Iterate through the strip half mark to find the color each strip pixel should be
   for (; i <= STRIP_HALF; i++) {
     /*Serial.print(i - curOffset);
     Serial.print("/");
     Serial.println(sectionSize[curSection]);*/
     if (i - curOffset < sectionSize[curSection]) { //In the middle of drawing a section
-      leds[STRIP_HALF - i] = curPaletteDim[curSection];
+      leds[STRIP_HALF - i] = blend(curPaletteDim[curSection], curPalette[curSection], rawSectionSize[curSection] * 255); //Blend in a brighter version of this color depending on how loud this section is
       
     } else if (i - curOffset >= sectionSize[curSection]) { //This section has been fully drawn - skip an led and move onto the next section
       i += 2;
@@ -731,6 +804,7 @@ void visualizeKick() {
   //Now overlay the bass section on top of whatever we've drawn for the rest of the strip
   i = 0; //Start drawing at the center of the strip...
   for (; i <= sectionSize[0]; i++) { //And iterate through the LEDs to draw for the bass section
+    //leds[STRIP_HALF - i] = blend(curPaletteDim[0], curPalette[0], bassKickProgress);
     leds[STRIP_HALF - i] = curPalette[0];
   }
 
