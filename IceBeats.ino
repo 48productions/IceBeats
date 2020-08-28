@@ -1,7 +1,8 @@
 /*****************************
  * ICEBEATS MUSIC VISUALIZER *
  ****************************/
- 
+
+#define FASTLED_ALLOW_INTERRUPTS 0 //Seems to be required for longer strips (required for 90 LEDs, but not for 60)
 #include "FastLED.h"
 
 #include <Audio.h>
@@ -19,7 +20,7 @@
 /*****************
  * CONFIGURATION *
  ****************/
-#define STRIP_LENGTH 60 //Number of LEDs in the strip
+#define STRIP_LENGTH 90 //Number of LEDs in the strip
 #define DATA_PIN_STRIP 5 //Pin connected to the LED strip
 
 #define DEBUG_FFT_BINS true //Set true to test FFT section responsiveness - bin sections are mapped to the brightness of specific pixels
@@ -29,17 +30,20 @@
 #define PIN_BASS_SEL_1 7 //My setup uses an LED light string where alternating LEDs are driven by reverse polarities (drive at +29V for even lights, -29V for odd lights). These are driven using an H-bridge, these pins control the direction the lights are driven in.
 #define PIN_BASS_SEL_2 8
 
-#define PIN_DEBUG_0 0
-#define PIN_DEBUG_1 1
-#define PIN_DEBUG_2 2
+#define PIN_DEBUG_0 21
+#define PIN_DEBUG_1 22
+#define PIN_DEBUG_2 23
 
+#define PIN_LIGHTS_LAT 19 //Pins for the latch, clock, and data lines for the lighting shift registers
+#define PIN_LIGHTS_CLK 18
+#define PIN_LIGHTS_DAT 20
 
 // STEPMANIA IO (Keystrokes)
 //  Inputs we currently send: Service, Vol Up, Vol Down
 //  This code automagically handles any keys you add to this list, just remember to assign it a keycode, a pin, and add entries to keyIOPressed[] as needed!
 
 const int keyIOCodes[] = {'`', -1, -2}; //List of keycodes we can send to the PC this is plugged into
-const int keyIOPins[] = {21, 22, 23}; //List of IO pins we should read to send these above keycodes
+const int keyIOPins[] = {12, 11, 10}; //List of IO pins we should read to send these above keycodes
 bool keyIOPressed[] = {false, false, false}; //Is xyz key currently pressed?
 
 
@@ -94,6 +98,9 @@ Bounce debug2 = Bounce(PIN_DEBUG_2, 5); //DEBUG 2: Force getBassKickProgress() (
 RunningAverage averagePeak(10); //The average measured peak, used for AGC
 float curGain = 1; //Current gain to use, used for AGC
 
+bool heartbeatState = LOW; //Is the heartbeat LED on or off?
+unsigned long lastHeartbeatFlipMs = 0; //Last time the heartbeat LED changed states
+ 
 
 /***************************
  * VISUALIZATION VARIABLES *
@@ -170,8 +177,18 @@ short lightTestStripColor = 0;
  * STEPMANIA IO VARIABLES * 
  *************************/
 
- //This code also works as an IO board for Stepmania-converted dance cabinets. These variables handle all that fun stuff:
- const int maxKeycode = sizeof(keyIOCodes) / sizeof(keyIOCodes[0]) - 1; //Maximum keycode number we'll scan for
+//This code also works as an IO board for Stepmania-converted dance cabinets. These variables handle all that fun stuff:
+const int maxKeycode = sizeof(keyIOCodes) / sizeof(keyIOCodes[0]) - 1; //Maximum keycode number we'll scan for
+
+byte receivedData = 0; //The byte of serial data we just got
+int lightBytePos = 0; //How many bytes of the 13 bytes of light data have we received?
+
+byte cabLEDs = 0; //Cab lights byte (4x marquee, 4x menu buttons)
+byte padLEDs = 0; //Pad lights byte (4x pad led per player)
+byte etcLEDs = 0; //Etc lights byte (2x bass light, room for expansion/modification)
+
+
+
 
 /********************
  * FUNCTIONS N SHIZ *
@@ -188,15 +205,20 @@ void setup() {
   LEDS.addLeds<WS2812, DATA_PIN_STRIP, GRB>(leds, STRIP_LENGTH);
   LEDS.setBrightness(84);
 
-  pinMode(PIN_DEBUG_0, INPUT_PULLUP); //Pinmode the debug buttons, debug light, and neopixel output
+  pinMode(PIN_DEBUG_0, INPUT_PULLUP); //Pinmode ALL the pins
   pinMode(PIN_DEBUG_1, INPUT_PULLUP);
   pinMode(PIN_DEBUG_2, INPUT_PULLUP);
   pinMode(LED_BUILTIN, OUTPUT);
+  
   pinMode(DATA_PIN_STRIP, OUTPUT);
   pinMode(PIN_BASS_LIGHT, OUTPUT);
   pinMode(PIN_BASS_SEL_1, OUTPUT);
   pinMode(PIN_BASS_SEL_2, OUTPUT);
-
+  
+  pinMode(PIN_LIGHTS_LAT, OUTPUT);
+  pinMode(PIN_LIGHTS_DAT, OUTPUT);
+  pinMode(PIN_LIGHTS_CLK, OUTPUT);
+  
   for (int i = 0; i <= maxKeycode; i++) { //Pinmode all the cabinet buttons we're gonna read
     pinMode(keyIOPins[i], INPUT_PULLUP);
   }
@@ -237,6 +259,53 @@ void loop() {
     }
   }
 
+  if (Serial.available() > 0) { //Do we have lights data to receive?
+    while (Serial.available() > 0) { //While we have lights data to receive, receive and process it!
+      receivedData = Serial.read(); //Read the next byte of serial data
+      //Serial.println(receivedData);
+      if (receivedData == '\n') { //If we got a newline (\n), we're done receiving new light states for this update
+        lightBytePos = 0; //The next byte of lighting data will be the first byte
+      } else {
+        
+        if (!lightTestEnabled) { //Don't process serial data if we're in the lighting test (just receive it)
+          switch (lightBytePos) { //Which byte of lighting data are we now receiving?
+            case 0: //First byte of lighting data (cabinet lights)
+              //Read x bit from the received byte using bitRead(), then set the corresponding light to that state
+              bitWrite(cabLEDs, 7, bitRead(receivedData, 0)); //Marquee up left
+              bitWrite(cabLEDs, 6, bitRead(receivedData, 1)); //Marquee up right
+              bitWrite(cabLEDs, 5, bitRead(receivedData, 2)); //Marquee down left
+              bitWrite(cabLEDs, 4, bitRead(receivedData, 3)); //Marquee down right
+              bitWrite(etcLEDs, 7, bitRead(receivedData, 4)); //Bass L
+              bitWrite(etcLEDs, 6, bitRead(receivedData, 5)); //Bass R
+              break;
+            case 1: //Second byte of lighting data (P1 menu button lights)
+              bitWrite(cabLEDs, 3, bitRead(receivedData, 0)); //P1 menu left
+              bitWrite(cabLEDs, 2, bitRead(receivedData, 4)); //P1 start
+              break;
+            case 3: //Byte 4: P1 pad lights
+              bitWrite(padLEDs, 4, bitRead(receivedData, 0)); //P1 Pad
+              bitWrite(padLEDs, 7, bitRead(receivedData, 1));
+              bitWrite(padLEDs, 6, bitRead(receivedData, 2));
+              bitWrite(padLEDs, 5, bitRead(receivedData, 3));
+              break;
+            case 7: //Byte 8: P2 menu
+              bitWrite(cabLEDs, 1, bitRead(receivedData, 0)); //P2 menu left
+              bitWrite(cabLEDs, 0, bitRead(receivedData, 4)); //P2 start
+              break;
+            case 9: //Byte 10: P2 pad
+              bitWrite(padLEDs, 3, bitRead(receivedData, 0)); //P2 Pad
+              bitWrite(padLEDs, 0, bitRead(receivedData, 1));
+              bitWrite(padLEDs, 2, bitRead(receivedData, 2));
+              bitWrite(padLEDs, 1, bitRead(receivedData, 3));
+              break;
+          }
+          lightBytePos++; //Finally, update how many bytes of lighting data we've received.
+        }
+      }
+    }
+
+    writeCabLighting(); //When we're done processing the serial data we have right now, write it to the shift registers!
+  }
 
   if (lightTestEnabled) { //In the lighting test, update some lights boi
     if (curMillis - lightTestStartMillis >= 300000)  { //A lotta time has passed since we started the light test, let's just exit it now
@@ -246,6 +315,13 @@ void loop() {
     if (curMillis - lightTestLastToggleMillis >= 500) { //500ms has passed, toggle the digital cabinet lights
       alternateBassSel();
       lightTestLastToggleMillis = curMillis;
+      
+      if (isAlternateBassKick) { //Also alternate the cabinet lights as well, based on the state of the alternating bass kick thingy above
+        cabLEDs = 255; padLEDs = 255; etcLEDs = 255;
+      } else {
+        cabLEDs = 0; padLEDs = 0; etcLEDs = 0;
+      }
+      writeCabLighting();
     }
 
     if (curMillis - lightTestLastStripUpdateMillis >= 25) { //Time to update the LED strip!
@@ -349,20 +425,37 @@ void loop() {
   for (int i = 0; i <= maxKeycode; i++) {
     bool buttonState = !digitalRead(keyIOPins[i]); //Read the state of this button, and invert it (they're active low)
     if (buttonState && !keyIOPressed[i]) { //Falling edge: We just pressed this button!
-      if (keyIOCodes[i] < 0) {
-        
+      if (keyIOCodes[i] < 0) { //Negative keycodes - special handling (a.k.a. do some volume control stuffs
+        Keyboard.press(KEY_F3); //Volume is handled in SM by holding F3 and pressing R/T. Press F3 and pulse R/T here, and release F3 on volume button release
+        switch (keyIOCodes[i]) {
+          case -1:
+            Keyboard.press('r');
+            Keyboard.release('r');
+            break;
+          case -2:
+            Keyboard.press('t');
+            Keyboard.release('t');
+            break;
+        }
       } else {
         Keyboard.press(keyIOCodes[i]);
       }
       keyIOPressed[i] = true;
-    } else if (!buttonState && keyIOPressed[i]) { //Rising edge: We just released this button!
-      if (keyIOCodes[i] < 0) {
+
       
+    } else if (!buttonState && keyIOPressed[i]) { //Rising edge: We just released this button!
+      if (keyIOCodes[i] < 0) { //Negative keycodes - special handling (a.k.a. release F3 for volume control)
+        Keyboard.release(KEY_F3);
       } else {
         Keyboard.release(keyIOCodes[i]);
       }
       keyIOPressed[i] = false;
     }
+  }
+  if (curMillis - lastHeartbeatFlipMs >= 500) { //500ms since the heartbeat LED toggled states, toggle it now!
+    heartbeatState = !heartbeatState;
+    lastHeartbeatFlipMs = curMillis;
+    digitalWrite(LED_BUILTIN, heartbeatState);
   }
   delay(10);
 }
@@ -424,7 +517,7 @@ bool getBassKicked() {
   lastBassChange = curBassChange; //Now store the last bass change and average for the next read
   lastShortBassAverage = curBassValue;
   
-  /*Serial.print(curBassValue * 6); //DEBUG: Print the current bass bin's value
+  Serial.print(curBassValue * 6); //DEBUG: Print the current bass bin's value
   Serial.print(" ");
   Serial.print(curBassChangeAverage * 12); //The average bass peak value
   Serial.print(" ");
@@ -438,11 +531,11 @@ bool getBassKicked() {
   if (bassKicked && curMillis >= lastBassKickMillis + 200) { //We detected a new peak earlier and it's been a bit since a bass kick
     bassKickLengthAverage.addValue(curMillis - lastBassKickMillis); //Add the time between the last kick and now to the average bass kick length
     lastBassKickMillis = curMillis; //Start a new bass kick!
-    //Serial.println("3");
+    Serial.println("3");
     alternateBassSel(); //Invert the alternating bass kick variable, drive the bass light selection pins
     return true;
   }
-  //Serial.println("0");
+  Serial.println("0");
   return false;
 }
 
@@ -535,6 +628,18 @@ void alternateBassSel() {
 void writeBassSel(bool sel) {
   digitalWrite(PIN_BASS_SEL_1, sel);
   digitalWrite(PIN_BASS_SEL_2, !sel);
+}
+
+
+/**
+ * Writes data to the cabinet lighting shift registers
+ */
+void writeCabLighting() {
+  digitalWrite(PIN_LIGHTS_LAT, LOW); //Pull latch pin low, shift out data, and throw latch pin high again
+  shiftOut(PIN_LIGHTS_DAT, PIN_LIGHTS_CLK, LSBFIRST, etcLEDs);
+  shiftOut(PIN_LIGHTS_DAT, PIN_LIGHTS_CLK, LSBFIRST, padLEDs);
+  shiftOut(PIN_LIGHTS_DAT, PIN_LIGHTS_CLK, LSBFIRST, cabLEDs);
+  digitalWrite(PIN_LIGHTS_LAT, HIGH);
 }
 
 
