@@ -70,6 +70,10 @@ const int PUNCH_MAX_SIZE_HIGH = STRIP_LENGTH / 8;
 const int KICK_MAX_SIZE_BASS = STRIP_LENGTH / 6; //Maximum section sizes for VE Kick
 const int KICK_MAX_SIZE_SECTION = STRIP_LENGTH / 8;
 
+const int VOLUME_MAX_SIZE_BASS = STRIP_LENGTH / 4; //Maximum section sizes for VE Volume
+const int VOLUME_MAX_SIZE_LOW = STRIP_LENGTH / 10;
+const int VOLUME_MAX_SIZE_MID = STRIP_LENGTH / 10;
+const int VOLUME_MAX_SIZE_HIGH = STRIP_LENGTH / 10;
 
 
  /**********************
@@ -110,10 +114,12 @@ enum VisualizationEffect { //A list of all visualization effects we can use - de
   VEDebugFFT,
   VEKick,
   VEPunch,
-  VEPulse
+  VEPulse,
+  VEVolume
 };
 
-const int MAX_VE = 3; //Maximum effect number we can use
+const int MAX_VE = 4; //Maximum effect number we can use
+
 
 const CHSV palettes[][4] = { //List of HSV color palettes to use for visualization
   {CHSV(165, 240, 255), CHSV(128, 230, 255), CHSV(128, 180, 255), CHSV(128, 40, 255) }, //Palette 0: Blue, Aqua, Light Aqua, Light Aqua/white
@@ -134,8 +140,10 @@ CHSV curPaletteDim[4] = palettes[0]; //A slightly dimmed version of the current 
 
 unsigned long curMillis = 0; //Current time
 
-RunningAverage bassChangeAverage(33); //Running average of detected bass peaks, used for bass kick detection
+RunningAverage bassChangeAverage(33); //Running average of detected bass changes, used for bass kick detection
 RunningAverage shortBassAverage(3); //Shorter running average of the bass, smoothes out the wrinkles so we get  s m o o t h  l i n e s
+RunningAverage shortNotBassAverage(9); //Short running average of the higher frequency bins (a.k.a. notBass), also used for bass kick detection
+RunningAverage longNotBassAverage(70); //Longer running average of the NotBass
 float lastShortBassAverage; //The short bass average last time it was checked, also used for bass kick detection
 float lastBassChange; //The last bass change last time it was checked. You know the drill.
 bool bassChangeIncreasing = true; //Is the bass change increasing or decreasing? Helps detect when it peaks.
@@ -227,6 +235,7 @@ void setup() {
 
   bassChangeAverage.clear(); //Clear out running averages for the bass
   shortBassAverage.clear();
+  shortNotBassAverage.clear();
   bassChangeAverage.addValue(0); //And add some initial data to the peak average
   averagePeak.clear();
   bassKickLengthAverage.clear();
@@ -359,20 +368,34 @@ void loop() {
       }
       prevIdling = idling;
   
-      //Now let's handle AGC - Theorhetically
+      //Now let's handle Automagic Gain Control (todo: Is this even the right term in this context?)
       averagePeak.addValue(curPeak);
       
-      if (averagePeak.getAverage() > 0.75) { //LOUD MUSIC
+      if (averagePeak.getAverage() > 0.85) { //LOUD MUSIC
         curGain *= 0.98; //Reduce gain, update the amp!
         amp.gain(curGain);
         
-      } else if (averagePeak.getAverage() < 0.75 && curGain <= 4) { //we quiet bois and we haven't gotten HYPER LOUD yet
-        curGain *= 1.001; //Slightly increase gain, update amp
+      } else if (averagePeak.getAverage() < 0.85 && curGain <= 4) { //we quiet bois and we haven't gotten HYPER LOUD yet
+        curGain *= 1.0015; //Slightly increase gain, update amp
         amp.gain(curGain);
       }
-      /*Serial.print(curPeak);
+
+      /**
+       * AGC SERIAL DEBUG
+       * 
+       * Use the Arduino serial monitor to fine-tune AGC values. Uncomment to print:
+       *  - The average'd peak value
+       *  - The raw, current peak value
+       *  - The current gain
+       *  - A straight line for the maximum peak
+       */
+      /*Serial.print(averagePeak.getAverage() * 2);
       Serial.print(" ");
-      Serial.println(curGain);*/
+      Serial.print(curPeak * 2);
+      Serial.print(" ");
+      Serial.print(curGain * 2);
+      Serial.print(" ");
+      Serial.println(2);*/
       
       
       if (curEffect == VEDebugFFT) { //Debugging the FFT? Map the peak to the first pixel!
@@ -382,7 +405,13 @@ void loop() {
   
     if (!idling && fft.available()) { //FFT has new data and we aren't idling, let's visualize it!
      //bassChangeAverage.addValue(getFFTSection(0));
-      shortBassAverage.addValue(getFFTSection(0));
+      shortBassAverage.addValue(getFFTSection(0)); //Add some FFT bins to our averages for beat detection
+      for (short section = 2; section <= 3; section++) { //Here, add bins 2 and 3 to the NotBass averages
+        float fftSection = getFFTSection(section);
+        shortNotBassAverage.addValue(fftSection);
+        longNotBassAverage.addValue(fftSection);
+      }
+      
       switch (curEffect) {
         case VEDebugFFT:
           visualizeFFTDebug();
@@ -395,6 +424,9 @@ void loop() {
           break;
         case VEKick:
           visualizeKick();
+          break;
+        case VEVolume:
+          visualizeVolume();
           break;
       }
       FastLED.show();
@@ -500,6 +532,7 @@ float getFFTSection(int id) {
  */
 bool getBassKicked() {
   float curBassValue = shortBassAverage.getAverage(); //Get the current value (short average) and (longer) running average of the bass section
+  float curNotBassValue = shortNotBassAverage.getAverage();
   //float curBassValue = getFFTSection(0);
   float curBassChange = max(curBassValue - lastShortBassAverage, 0); //Also find out how much the bass value changed this read
   //float curBassChange = abs(curBassValue - lastShortBassAverage); //Also find out how much the bass value changed this read
@@ -507,31 +540,58 @@ bool getBassKicked() {
     bassChangeAverage.addValue(curBassChange);
   //}
   float curBassChangeAverage = bassChangeAverage.getAverage();
+  float curLongNotBassValue = longNotBassAverage.getAverage();
   bool bassKicked = false;
 
-  if (curBassChange >= curBassChangeAverage * 3.45 && curBassChangeAverage >= 0.007) { //Did our bass change enough above the average (and above an arbitrary "volume" threshold)?
+  bool notBassBelowThreshold = curNotBassValue <= curLongNotBassValue * 0.89; //Check if our NotBass is below a certain threshold
+  bool bassAboveThreshold = curBassChange >= curBassChangeAverage * (notBassBelowThreshold ? 3.35 : 3.49); //Check if our bass change is above a certain threshold (lower it slightly if notbass is low, or raise it if notbass is high) (Non-notbass ORIG: 3.45)
+
+  if (bassAboveThreshold && curBassChangeAverage >= 0.007) { //Did our bass change enough above the average (and above an arbitrary "volume" threshold)?
     //bassChangeAverage.addValue(lastBassChange);
     bassKicked = true; 
   }
   
   lastBassChange = curBassChange; //Now store the last bass change and average for the next read
   lastShortBassAverage = curBassValue;
-  
-  Serial.print(curBassValue * 6); //DEBUG: Print the current bass bin's value
+
+
+  /**
+   * BEAT DETECTION SERIAL DEBUG
+   * 
+   * Use the Arduino serial monitor to fine-tune AGC values. Uncomment these and the two lines under if (bassKicked &&...) to print:
+   *  - A lotta random garbage
+  */
+  /*Serial.print(curBassValue * 12); //DEBUG: Print the current bass bin's value
+  Serial.print(" ");*/
+  Serial.print(curNotBassValue * 6);
   Serial.print(" ");
-  Serial.print(curBassChangeAverage * 12); //The average bass peak value
+  //Serial.print(curLongNotBassValue * 6);
+  //Serial.print(" ");
+  Serial.print(notBassBelowThreshold ? 6 : 0);
   Serial.print(" ");
-  Serial.print(curBassChangeAverage * 12 * 3.45); //The threshold to trigger a bass kick
+  /*Serial.print(curBassChangeAverage * 48); //The average bass peak value
+  Serial.print(" ");*/
+  Serial.print(curBassChangeAverage * 48 * 3.35); //The threshold to trigger a bass kick
   Serial.print(" ");
-  Serial.print(curBassChange * 12); //And the current amount the bass has changed this update
+  Serial.print(curBassChangeAverage * 48 * 3.49);
   Serial.print(" ");
+  Serial.print(curBassChange * 48); //And the current amount the bass has changed this update
+  Serial.print(" ");
+  /*Serial.print(getFFTSection(0) * 6);
+  Serial.print(" ");
+  Serial.print(getFFTSection(1) * 6);
+  Serial.print(" ");
+  Serial.print(getFFTSection(2) * 6);
+  Serial.print(" ");
+  Serial.print(getFFTSection(3) * 6);
+  Serial.print(" ");*/
   /*Serial.print(" ");
   Serial.println(abs((curBassValue - curBassAverage)));*/
   
   if (bassKicked && curMillis >= lastBassKickMillis + 200) { //We detected a new peak earlier and it's been a bit since a bass kick
     bassKickLengthAverage.addValue(curMillis - lastBassKickMillis); //Add the time between the last kick and now to the average bass kick length
     lastBassKickMillis = curMillis; //Start a new bass kick!
-    Serial.println("3");
+    Serial.println("6");
     alternateBassSel(); //Invert the alternating bass kick variable, drive the bass light selection pins
     return true;
   }
@@ -555,7 +615,7 @@ float getBassKickProgress() {
   //This function returns how close we are to the start of the x ms-wide window after the bass kick happens (1 - just started kick, 0 - x ms has passed since kick)
   //Since this function pulls the time the last time getBassKicked() returned true, getBassKicked() MUST be called beforehand for this function to work!
   float kicking = 0;
-  int kickLength = min(bassKickLengthAverage.getAverage() / 3, 500); //Find the average kick length here, cap it at 500ms so we don't get uber long bass kicks
+  int kickLength = min(bassKickLengthAverage.getAverage() / 3, 400); //Find the average kick length here, cap it at 400ms so we don't get uber long bass kicks
   //Serial.println(kickLength);
   //if (curMillis <= lastBassKickMillis + 125) { kicking = 1 - ((float)(curMillis - lastBassKickMillis) / 125); } //Only calculate this value if we're still in the middle of the bass kick (and guaranteed to not return less than 0)
   if (curMillis <= lastBassKickMillis + kickLength) { kicking = 1 - ((float)(curMillis - lastBassKickMillis) / kickLength); } //Only calculate this value if we're still in the middle of the bass kick (and guaranteed to not return less than 0)
@@ -926,6 +986,75 @@ void visualizeKick() {
   if (bassKickProgress > 1) { leds[30] = CHSV(96, 255, 255);}
   leds[31] = CRGB::Black; leds[29] = CRGB::Black;*/
   
+}
+
+
+/**
+ * Visualization effect: Volume
+ * 
+ * Modified version of Pulse/Punch to stack FFT sections on top of each other for a "VU meter"-style effect
+ * Bass is still mapped to the center, and bass kicks still scroll outwards
+ */
+void visualizeVolume() {
+  short sectionSize[] = {0, 0, 0, 0}; //Size of each visualization section in pixels
+  sectionSize[0] = getFFTSection(0) * VOLUME_MAX_SIZE_BASS;
+  sectionSize[1] = getFFTSection(1) * VOLUME_MAX_SIZE_LOW;
+  sectionSize[2] = getFFTSection(2) * VOLUME_MAX_SIZE_MID;
+  sectionSize[3] = getFFTSection(3) * VOLUME_MAX_SIZE_HIGH;
+
+  fadeToBlackBy(leds, STRIP_LENGTH, 95); //Fade out the last update from the strip a bit
+
+  //Did the bass just kick? Start a new bass kick scroll from the end of the current bass section
+  if (getBassKicked()) {
+    bass_scroll_pos = sectionSize[0];
+    //bass_scroll_pos = 1;
+  }
+
+  float bassKickProgress = getBassKickProgress() * 255; //Store the current bass kick progress too - We'll use it a bunch!
+
+  //If we're scrolling a bass kick outwards, update it
+  if (bass_scroll_pos >= 1) {
+    bass_scroll_pos++;
+    if (bass_scroll_pos > STRIP_HALF) { //We've scrolled past the end of the strip, reset to 0 to stop scrolling
+      bass_scroll_pos = 0;
+    } else { //Still scrolling, set an LED
+      leds[STRIP_HALF - bass_scroll_pos] = bass_scroll_color;
+    }
+  }
+
+  /*Serial.print(sectionSize[0]);
+  Serial.print(" ");
+  Serial.println(bass_scroll_pos);*/
+
+  //For each section to draw, iterate through the number of LEDs to draw. Then, find and add the offset to each LED to draw so it draws in the correct place on the strip
+  int i = 0; //First, we'll track the LED we're writing to as i - it'll be used for the first 3 strip sections to write to
+  
+  //Then for each FFT section, write a number of LEDs for that section based on how loud it is
+  for (int j = 0; j < sectionSize[3]; j++) { //Set LOW
+    i++;
+    leds[i] = blend(curPaletteDim[3], curPalette[3], bassKickProgress); //If the bass is kicking, blend in a bit of a brighter version of the current palette
+  }
+
+  i += 3; //Let's also increment i between sections, to give gaps between the FFT sections
+  for (int j = 0; j < sectionSize[2]; j++) { //Set MID
+    i++;
+    leds[i] = blend(curPaletteDim[2], curPalette[2], bassKickProgress);
+  }
+
+  i += 3;
+  for (int j = 0; j < sectionSize[1]; j++) { //Set HIGH
+    i++;
+    leds[i] = blend(curPaletteDim[1], curPalette[1], bassKickProgress);
+  }
+
+  //The bass section should pulse out from the center of the strip instead of stacking with the others (idk why, is it cool???)
+  for (int i = 0; i < sectionSize[0]; i++) { //Set BASS
+    //leds[i + sectionOffset] = curPalette[0];
+    leds[STRIP_HALF - i] = blend(curPaletteDim[0], curPalette[0], bassKickProgress);
+  } 
+
+  //Finally, mirror the first half of the strip to the second half
+  mirrorStrip();
 }
 
 
