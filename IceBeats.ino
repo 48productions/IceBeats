@@ -75,6 +75,9 @@ const int VOLUME_MAX_SIZE_LOW = STRIP_LENGTH / 10;
 const int VOLUME_MAX_SIZE_MID = STRIP_LENGTH / 10;
 const int VOLUME_MAX_SIZE_HIGH = STRIP_LENGTH / 10;
 
+const int PITCH_SECTION_SIZE = STRIP_HALF / 3; //Section size for VE Pitch's palette gradients
+
+
 
  /**********************
   * HARDWARE VARIABLES *
@@ -115,10 +118,11 @@ enum VisualizationEffect { //A list of all visualization effects we can use - de
   VEKick,
   VEPunch,
   VEPulse,
-  VEVolume
+  VEVolume,
+  VEPitch
 };
 
-const int MAX_VE = 4; //Maximum effect number we can use
+const int MAX_VE = 5; //Maximum effect number we can use
 
 
 const CHSV palettes[][4] = { //List of HSV color palettes to use for visualization
@@ -271,7 +275,7 @@ void loop() {
   if (Serial.available() > 0) { //Do we have lights data to receive?
     while (Serial.available() > 0) { //While we have lights data to receive, receive and process it!
       receivedData = Serial.read(); //Read the next byte of serial data
-      //Serial.println(receivedData);
+      Serial.println(receivedData);
       if (receivedData == '\n') { //If we got a newline (\n), we're done receiving new light states for this update
         lightBytePos = 0; //The next byte of lighting data will be the first byte
       } else {
@@ -428,6 +432,9 @@ void loop() {
         case VEVolume:
           visualizeVolume();
           break;
+        case VEPitch:
+          visualizePitch();
+          break;
       }
       FastLED.show();
   
@@ -454,7 +461,7 @@ void loop() {
   
   }
   
-  for (int i = 0; i <= maxKeycode; i++) {
+  for (int i = 0; i <= maxKeycode; i++) { //Handle keypresses!
     bool buttonState = !digitalRead(keyIOPins[i]); //Read the state of this button, and invert it (they're active low)
     if (buttonState && !keyIOPressed[i]) { //Falling edge: We just pressed this button!
       if (keyIOCodes[i] < 0) { //Negative keycodes - special handling (a.k.a. do some volume control stuffs
@@ -484,6 +491,7 @@ void loop() {
       keyIOPressed[i] = false;
     }
   }
+  
   if (curMillis - lastHeartbeatFlipMs >= 500) { //500ms since the heartbeat LED toggled states, toggle it now!
     heartbeatState = !heartbeatState;
     lastHeartbeatFlipMs = curMillis;
@@ -563,20 +571,20 @@ bool getBassKicked() {
   */
   /*Serial.print(curBassValue * 12); //DEBUG: Print the current bass bin's value
   Serial.print(" ");*/
-  Serial.print(curNotBassValue * 6);
-  Serial.print(" ");
+  //Serial.print(curNotBassValue * 6);
+  //Serial.print(" ");
   //Serial.print(curLongNotBassValue * 6);
   //Serial.print(" ");
-  Serial.print(notBassBelowThreshold ? 6 : 0);
-  Serial.print(" ");
+  //Serial.print(notBassBelowThreshold ? 6 : 0);
+  //Serial.print(" ");
   /*Serial.print(curBassChangeAverage * 48); //The average bass peak value
   Serial.print(" ");*/
-  Serial.print(curBassChangeAverage * 48 * 3.35); //The threshold to trigger a bass kick
+  /*Serial.print(curBassChangeAverage * 48 * 3.35); //The threshold to trigger a bass kick
   Serial.print(" ");
   Serial.print(curBassChangeAverage * 48 * 3.49);
   Serial.print(" ");
   Serial.print(curBassChange * 48); //And the current amount the bass has changed this update
-  Serial.print(" ");
+  Serial.print(" ");*/
   /*Serial.print(getFFTSection(0) * 6);
   Serial.print(" ");
   Serial.print(getFFTSection(1) * 6);
@@ -591,11 +599,11 @@ bool getBassKicked() {
   if (bassKicked && curMillis >= lastBassKickMillis + 200) { //We detected a new peak earlier and it's been a bit since a bass kick
     bassKickLengthAverage.addValue(curMillis - lastBassKickMillis); //Add the time between the last kick and now to the average bass kick length
     lastBassKickMillis = curMillis; //Start a new bass kick!
-    Serial.println("6");
+    //Serial.println("6");
     alternateBassSel(); //Invert the alternating bass kick variable, drive the bass light selection pins
     return true;
   }
-  Serial.println("0");
+  //Serial.println("0");
   return false;
 }
 
@@ -1056,6 +1064,53 @@ void visualizeVolume() {
   //Finally, mirror the first half of the strip to the second half
   mirrorStrip();
 }
+
+
+
+/**
+ * Visualization effect: Pitch
+ * 
+ * Raw FFT bins are mapped as pixels on the strip.
+ */
+void visualizePitch() {
+  CHSV pitchPalette[4]; //Declare a new palette array for use in this VE, copy our current palette to it (for us to more easily modify later)
+  //memcpy(pitchPalette, curPalette, sizeof(curPalette));
+
+  getBassKicked(); //Also update the bass kick detection
+  short bassKickProgress = getBassKickProgress() * 255;
+  
+  for (int i = 0; i <= 4; i++) {
+    pitchPalette[i] = blend(curPaletteDim[i], curPalette[i], bassKickProgress);
+  }
+
+  
+
+  /* Gradient handling: Smoothly fade between the four palette colors along the half strip we're working with
+   * We'll divide the half of the strip we're working with into three sections (one for each transition between the four palette colors)
+   * The beginning/end of each section marks a palette color to fade between, so fade between the two nearest colors inside each section
+  */
+  short sectionPos = 0;
+  short section = 0;
+  CHSV ledColor;
+  for (int i = 0; i <= STRIP_HALF; i++) { //Iterate through the LEDs on the strip to set
+    sectionPos++;
+    if (sectionPos >= PITCH_SECTION_SIZE) { sectionPos = 0; section++; }
+    ledColor = blend(pitchPalette[section], pitchPalette[section + 1], ((float)(sectionPos) / PITCH_SECTION_SIZE) * 255); //Now find the base color for this LED - Blend between the two palette colors we're between using the position into this "section" we're at
+    leds[STRIP_HALF - i] = blend(CHSV(0, 0, 0), ledColor, pitchGetLEDBrightness(i)); //Then blend that color we found with black depending on how loud the corresponding FFT bins are
+  }
+
+  mirrorStrip();
+}
+
+
+/**
+ * Returns a brightness (0-255) for LED #x on the led strip (for VE Pitch)
+ * Accounts only for brightness changes from the LED's corresponding FFT bins
+ */
+short pitchGetLEDBrightness(int x) {
+  return 255;
+}
+
 
 
 
