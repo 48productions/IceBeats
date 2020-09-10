@@ -30,13 +30,15 @@
 #define PIN_BASS_SEL_1 7 //My setup uses an LED light string where alternating LEDs are driven by reverse polarities (drive at +29V for even lights, -29V for odd lights). These are driven using an H-bridge, these pins control the direction the lights are driven in.
 #define PIN_BASS_SEL_2 8
 
-#define PIN_DEBUG_0 21
-#define PIN_DEBUG_1 22
-#define PIN_DEBUG_2 23
+#define PIN_DEBUG_0 17
+#define PIN_DEBUG_1 14
+#define PIN_DEBUG_2 15
 
-#define PIN_LIGHTS_LAT 19 //Pins for the latch, clock, and data lines for the lighting shift registers
-#define PIN_LIGHTS_CLK 18
-#define PIN_LIGHTS_DAT 20
+#define PIN_LIGHTS_LAT 3 //Pins for the latch, clock, and data lines for the lighting shift registers
+#define PIN_LIGHTS_CLK 2
+#define PIN_LIGHTS_DAT 4
+
+const int pinLightsMarquee[4] = {20, 21, 22, 23}; //PWM-able pins for the 4 marquee lights
 
 // STEPMANIA IO (Keystrokes)
 //  Inputs we currently send: Service, Vol Up, Vol Down
@@ -199,6 +201,8 @@ byte cabLEDs = 0; //Cab lights byte (4x marquee, 4x menu buttons)
 byte padLEDs = 0; //Pad lights byte (4x pad led per player)
 byte etcLEDs = 0; //Etc lights byte (2x bass light, room for expansion/modification)
 
+bool marqueeOn[4] = {false, false, false, false}; //The current state and brightness of the 4 marquee lights
+short marqueeBrightness[4] = {0, 0, 0, 0};
 
 
 
@@ -230,6 +234,10 @@ void setup() {
   pinMode(PIN_LIGHTS_LAT, OUTPUT);
   pinMode(PIN_LIGHTS_DAT, OUTPUT);
   pinMode(PIN_LIGHTS_CLK, OUTPUT);
+
+  for (int i = 0; i <= 3; i++) { //Pinmode all the marquee lights
+    pinMode(pinLightsMarquee[i], OUTPUT);
+  }
   
   for (int i = 0; i <= maxKeycode; i++) { //Pinmode all the cabinet buttons we're gonna read
     pinMode(keyIOPins[i], INPUT_PULLUP);
@@ -275,7 +283,7 @@ void loop() {
   if (Serial.available() > 0) { //Do we have lights data to receive?
     while (Serial.available() > 0) { //While we have lights data to receive, receive and process it!
       receivedData = Serial.read(); //Read the next byte of serial data
-      Serial.println(receivedData);
+      //Serial.println(receivedData);
       if (receivedData == '\n') { //If we got a newline (\n), we're done receiving new light states for this update
         lightBytePos = 0; //The next byte of lighting data will be the first byte
       } else {
@@ -284,16 +292,23 @@ void loop() {
           switch (lightBytePos) { //Which byte of lighting data are we now receiving?
             case 0: //First byte of lighting data (cabinet lights)
               //Read x bit from the received byte using bitRead(), then set the corresponding light to that state
-              bitWrite(cabLEDs, 7, bitRead(receivedData, 0)); //Marquee up left
+              /*bitWrite(cabLEDs, 7, bitRead(receivedData, 0)); //Marquee up left
               bitWrite(cabLEDs, 6, bitRead(receivedData, 1)); //Marquee up right
               bitWrite(cabLEDs, 5, bitRead(receivedData, 2)); //Marquee down left
-              bitWrite(cabLEDs, 4, bitRead(receivedData, 3)); //Marquee down right
-              bitWrite(etcLEDs, 7, bitRead(receivedData, 4)); //Bass L
-              bitWrite(etcLEDs, 6, bitRead(receivedData, 5)); //Bass R
+              bitWrite(cabLEDs, 4, bitRead(receivedData, 3)); //Marquee down right*/
+              for (int light = 0; light <= 3; light++) { //Iterate through the 4 marquee lights
+                marqueeOn[light] = bitRead(receivedData, light);
+              }
+              //bitWrite(etcLEDs, 7, bitRead(receivedData, 4)); //Bass L
+              //bitWrite(etcLEDs, 6, bitRead(receivedData, 5)); //Bass R
+              bitWrite(cabLEDs, 7, bitRead(receivedData, 4)); //Bass L
+              bitWrite(cabLEDs, 6, bitRead(receivedData, 5)); //Bass R
               break;
             case 1: //Second byte of lighting data (P1 menu button lights)
               bitWrite(cabLEDs, 3, bitRead(receivedData, 0)); //P1 menu left
               bitWrite(cabLEDs, 2, bitRead(receivedData, 4)); //P1 start
+              
+              bitWrite(cabLEDs, 5, bitRead(receivedData, 5)); //P1 select
               break;
             case 3: //Byte 4: P1 pad lights
               bitWrite(padLEDs, 4, bitRead(receivedData, 0)); //P1 Pad
@@ -304,6 +319,8 @@ void loop() {
             case 7: //Byte 8: P2 menu
               bitWrite(cabLEDs, 1, bitRead(receivedData, 0)); //P2 menu left
               bitWrite(cabLEDs, 0, bitRead(receivedData, 4)); //P2 start
+
+              bitWrite(cabLEDs, 4, bitRead(receivedData, 5)); //P2 select
               break;
             case 9: //Byte 10: P2 pad
               bitWrite(padLEDs, 3, bitRead(receivedData, 0)); //P2 Pad
@@ -333,6 +350,10 @@ void loop() {
         cabLEDs = 255; padLEDs = 255; etcLEDs = 255;
       } else {
         cabLEDs = 0; padLEDs = 0; etcLEDs = 0;
+      }
+
+      for (int light = 0; light <= 3; light++) { //Iterate through the 4 marquee lights
+        marqueeOn[light] = isAlternateBassKick;
       }
       writeCabLighting();
     }
@@ -497,6 +518,19 @@ void loop() {
     lastHeartbeatFlipMs = curMillis;
     digitalWrite(LED_BUILTIN, heartbeatState);
   }
+
+  for (int i = 0; i <= 3; i++) { //Handle smooth fading for the marquee lights
+    if (marqueeOn[i] && marqueeBrightness[i] < 255) { //If we still need to fade on this light...
+      marqueeBrightness[i] = min((int)marqueeBrightness[i] + 50, 255); //...increment its brightness (but cap it at 255)
+      Serial.println(marqueeBrightness[i]);
+      analogWrite(pinLightsMarquee[i], marqueeBrightness[i]);
+      
+    } else if (!marqueeOn[i] && marqueeBrightness[i] > 0) { //What if we need to fade OFF this light?
+      marqueeBrightness[i] = max((int)marqueeBrightness[i] - 50, 0); //...decrement its brightness (but prevent it from going below 0!)
+      analogWrite(pinLightsMarquee[i], marqueeBrightness[i]);
+    }
+  }
+  
   delay(10);
 }
 
@@ -1070,7 +1104,7 @@ void visualizeVolume() {
 /**
  * Visualization effect: Pitch
  * 
- * Raw FFT bins are mapped as pixels on the strip.
+ * Raw FFT bins are mapped as pixels on the strip. The strip fades between the current palette colors in a big gradient, and pulses to the beat
  */
 void visualizePitch() {
   CHSV pitchPalette[4]; //Declare a new palette array for use in this VE, copy our current palette to it (for us to more easily modify later)
