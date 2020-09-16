@@ -739,8 +739,8 @@ void writeBassSel(bool sel) {
 void writeCabLighting() {
   digitalWrite(PIN_LIGHTS_LAT, LOW); //Pull latch pin low, shift out data, and throw latch pin high again
   shiftOut(PIN_LIGHTS_DAT, PIN_LIGHTS_CLK, LSBFIRST, etcLEDs);
-  shiftOut(PIN_LIGHTS_DAT, PIN_LIGHTS_CLK, LSBFIRST, padLEDs);
   shiftOut(PIN_LIGHTS_DAT, PIN_LIGHTS_CLK, LSBFIRST, cabLEDs);
+  shiftOut(PIN_LIGHTS_DAT, PIN_LIGHTS_CLK, LSBFIRST, padLEDs);
   digitalWrite(PIN_LIGHTS_LAT, HIGH);
 }
 
