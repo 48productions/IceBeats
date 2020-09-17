@@ -25,6 +25,7 @@
 
 #define DEBUG_FFT_BINS true //Set true to test FFT section responsiveness - bin sections are mapped to the brightness of specific pixels
 
+#define DEBUG_BURNIN true //Set to true to enable the light test at boot and disable timing out of it
 
 #define PIN_BASS_LIGHT 6 //PWM-able light for the bass
 #define PIN_BASS_SEL_1 7 //My setup uses an LED light string where alternating LEDs are driven by reverse polarities (drive at +29V for even lights, -29V for odd lights). These are driven using an H-bridge, these pins control the direction the lights are driven in.
@@ -179,7 +180,7 @@ const short idleUpdateMs = 25; //How often should we update the idle animation?
 
 short idleCurHue = 0; //Current hue, used for idle effects
 
-bool lightTestEnabled = false; //If we're currently in the lighting test or not, and when we entered it
+bool lightTestEnabled = DEBUG_BURNIN; //If we're currently in the lighting test or not, and when we entered it (default to whether we're running a burn-in or not)
 unsigned long lightTestStartMillis = 0; //Also track some timestamps of when some updates last occured
 unsigned long lightTestLastToggleMillis = 0;
 unsigned long lightTestLastStripUpdateMillis = 0;
@@ -262,7 +263,7 @@ void loop() {
   debug2.update();
 
   if (debug2.fell()) { //Debug 2 pressed, swap to a new color palette
-    setNewPalette(curPaletteIndex + 1);
+    //setNewPalette(curPaletteIndex + 1);
   }
 
   if (debug1.fell()) { //Debug 1 pressed, swap to a new visualization effect
@@ -338,11 +339,12 @@ void loop() {
   }
 
   if (lightTestEnabled) { //In the lighting test, update some lights boi
-    if (curMillis - lightTestStartMillis >= 300000)  { //A lotta time has passed since we started the light test, let's just exit it now
+    if (curMillis - lightTestStartMillis >= 300000 && !DEBUG_BURNIN)  { //A lotta time has passed since we started the light test (and we're not doing a burn-in), let's just exit it now
       lightTestEnabled = false;
     }
     
     if (curMillis - lightTestLastToggleMillis >= 500) { //500ms has passed, toggle the digital cabinet lights
+      analogWrite(PIN_BASS_LIGHT, 255);
       alternateBassSel();
       lightTestLastToggleMillis = curMillis;
       
@@ -521,12 +523,12 @@ void loop() {
 
   for (int i = 0; i <= 3; i++) { //Handle smooth fading for the marquee lights
     if (marqueeOn[i] && marqueeBrightness[i] < 255) { //If we still need to fade on this light...
-      marqueeBrightness[i] = min((int)marqueeBrightness[i] + 50, 255); //...increment its brightness (but cap it at 255)
+      marqueeBrightness[i] = min((int)marqueeBrightness[i] + 40, 255); //...increment its brightness (but cap it at 255)
       Serial.println(marqueeBrightness[i]);
       analogWrite(pinLightsMarquee[i], marqueeBrightness[i]);
       
     } else if (!marqueeOn[i] && marqueeBrightness[i] > 0) { //What if we need to fade OFF this light?
-      marqueeBrightness[i] = max((int)marqueeBrightness[i] - 50, 0); //...decrement its brightness (but prevent it from going below 0!)
+      marqueeBrightness[i] = max((int)marqueeBrightness[i] - 40, 0); //...decrement its brightness (but prevent it from going below 0!)
       analogWrite(pinLightsMarquee[i], marqueeBrightness[i]);
     }
   }
@@ -546,6 +548,21 @@ void mirrorStrip() {
 
 
 /**
+ * Alternate version of getFFTSection() with some exponential magic applied to hopefully make visual effects a bit more appealing
+ * On louder songs, this makes subtle volume changes more distinct but tends to *really* mute quiet songs
+ * TODO: Not quite ready for prime time, revisit implementing this in the future
+ */
+/*float getFFTSection(int id) {
+  if (debug2.read()) {
+    return pow(5, getRawFFTSection(id) - 1) * 1.25 - 0.25; //Extra multiplication/subtraction to center our exponential curve within the 0-1 range we need
+    return pow(10, getRawFFTSection(id) - 1) * 1.1 - 0.1; //Extra multiplication/subtraction to center our exponential curve within the 0-1 range we need
+  } else {
+     return getRawFFTSection(id);
+  }
+}*/
+
+
+/**
  * The FFT bins are divided into sections, color organ style.
  * Each section corresponds to a set of frequencies, return them here.
  * Always returns value between 0 and 1
@@ -555,7 +572,7 @@ float getFFTSection(int id) {
   
   switch (id) { //Switch based on the id of the section to get. Each Teensy FFT bin is 43Hz wide, and we get groups of bins for each section.
     case 0: //Bass bin - 43Hz-86Hz
-      return constrain(fft.read(1) * 2, 0, 1);
+      return constrain(fft.read(1) * 2, 0, 1); //Todo: Constrain is jank is frig and WILL cut off the tops of audio waveforms on busier/louder songs
     case 1: //Low - 473-1.462kHz
       return constrain(fft.read(11, 34) / 1.25, 0, 1);
     case 2: //Mid - 1.505-5.031k
