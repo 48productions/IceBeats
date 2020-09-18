@@ -46,7 +46,7 @@ const int pinLightsMarquee[4] = {20, 21, 22, 23}; //PWM-able pins for the 4 marq
 //  This code automagically handles any keys you add to this list, just remember to assign it a keycode, a pin, and add entries to keyIOPressed[] as needed!
 
 const int keyIOCodes[] = {'`', -1, -2}; //List of keycodes we can send to the PC this is plugged into
-const int keyIOPins[] = {12, 11, 10}; //List of IO pins we should read to send these above keycodes
+const int keyIOPins[] = {12, 10, 11}; //List of IO pins we should read to send these above keycodes
 bool keyIOPressed[] = {false, false, false}; //Is xyz key currently pressed?
 
 
@@ -293,23 +293,23 @@ void loop() {
           switch (lightBytePos) { //Which byte of lighting data are we now receiving?
             case 0: //First byte of lighting data (cabinet lights)
               //Read x bit from the received byte using bitRead(), then set the corresponding light to that state
-              /*bitWrite(cabLEDs, 7, bitRead(receivedData, 0)); //Marquee up left
+              bitWrite(cabLEDs, 7, bitRead(receivedData, 0)); //Marquee up left
               bitWrite(cabLEDs, 6, bitRead(receivedData, 1)); //Marquee up right
               bitWrite(cabLEDs, 5, bitRead(receivedData, 2)); //Marquee down left
-              bitWrite(cabLEDs, 4, bitRead(receivedData, 3)); //Marquee down right*/
-              for (int light = 0; light <= 3; light++) { //Iterate through the 4 marquee lights
+              bitWrite(cabLEDs, 4, bitRead(receivedData, 3)); //Marquee down right
+              /*for (int light = 0; light <= 3; light++) { //Iterate through the 4 marquee lights
                 marqueeOn[light] = bitRead(receivedData, light);
-              }
-              //bitWrite(etcLEDs, 7, bitRead(receivedData, 4)); //Bass L
-              //bitWrite(etcLEDs, 6, bitRead(receivedData, 5)); //Bass R
-              bitWrite(cabLEDs, 7, bitRead(receivedData, 4)); //Bass L
-              bitWrite(cabLEDs, 6, bitRead(receivedData, 5)); //Bass R
+              }*/
+              bitWrite(etcLEDs, 7, bitRead(receivedData, 4)); //Bass L
+              bitWrite(etcLEDs, 6, bitRead(receivedData, 5)); //Bass R
+              //bitWrite(cabLEDs, 7, bitRead(receivedData, 4)); //Bass L
+              //bitWrite(cabLEDs, 6, bitRead(receivedData, 5)); //Bass R
               break;
             case 1: //Second byte of lighting data (P1 menu button lights)
               bitWrite(cabLEDs, 3, bitRead(receivedData, 0)); //P1 menu left
               bitWrite(cabLEDs, 2, bitRead(receivedData, 4)); //P1 start
               
-              bitWrite(cabLEDs, 5, bitRead(receivedData, 5)); //P1 select
+              //bitWrite(cabLEDs, 5, bitRead(receivedData, 5)); //P1 select
               break;
             case 3: //Byte 4: P1 pad lights
               bitWrite(padLEDs, 4, bitRead(receivedData, 0)); //P1 Pad
@@ -321,7 +321,7 @@ void loop() {
               bitWrite(cabLEDs, 1, bitRead(receivedData, 0)); //P2 menu left
               bitWrite(cabLEDs, 0, bitRead(receivedData, 4)); //P2 start
 
-              bitWrite(cabLEDs, 4, bitRead(receivedData, 5)); //P2 select
+              //bitWrite(cabLEDs, 4, bitRead(receivedData, 5)); //P2 select
               break;
             case 9: //Byte 10: P2 pad
               bitWrite(padLEDs, 3, bitRead(receivedData, 0)); //P2 Pad
