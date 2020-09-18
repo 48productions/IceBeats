@@ -25,7 +25,7 @@
 
 #define DEBUG_FFT_BINS true //Set true to test FFT section responsiveness - bin sections are mapped to the brightness of specific pixels
 
-#define DEBUG_BURNIN true //Set to true to enable the light test at boot and disable timing out of it
+#define DEBUG_BURNIN false //Set to true to enable the light test at boot and disable timing out of it
 
 #define PIN_BASS_LIGHT 6 //PWM-able light for the bass
 #define PIN_BASS_SEL_1 7 //My setup uses an LED light string where alternating LEDs are driven by reverse polarities (drive at +29V for even lights, -29V for odd lights). These are driven using an H-bridge, these pins control the direction the lights are driven in.
