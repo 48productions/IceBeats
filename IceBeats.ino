@@ -79,6 +79,7 @@ const int VOLUME_MAX_SIZE_MID = STRIP_LENGTH / 10;
 const int VOLUME_MAX_SIZE_HIGH = STRIP_LENGTH / 10;
 
 const int PITCH_SECTION_SIZE = STRIP_HALF / 3; //Section size for VE Pitch's palette gradients
+const double PITCH_BIN_EXP = log10(511) / STRIP_HALF; //Magic number used to help calculate the number of FFT bins per pixel in VE Pitch (More documentation below)
 
 
 
@@ -263,7 +264,7 @@ void loop() {
   debug2.update();
 
   if (debug2.fell()) { //Debug 2 pressed, swap to a new color palette
-    //setNewPalette(curPaletteIndex + 1);
+    setNewPalette(curPaletteIndex + 1);
   }
 
   if (debug1.fell()) { //Debug 1 pressed, swap to a new visualization effect
@@ -992,7 +993,7 @@ void visualizeKick() {
     lastScrollUpdateMillis = curMillis; //Record the time this update happened at as reference for timing the next update
     //avgBassSize = 0;
     scrollOffset++;
-    //scrollOffset += bassKickProgress > 0 ? 1 : 1; //Update the scroll offset - Offset it by more if we're kicking the bass
+    //scrollOffset += bassKickProgress > 0 ? 2 : 1; //Update the scroll offset - Offset it by more if we're kicking the bass
     if (scrollOffset > sectionSize[sectionOffset]) { //Scrolled an entire section's worth of pixels, now offset the section instead and reset the scroll
       sectionOffset--;
       scrollOffset = -sectionSize[wrapValue(sectionOffset, 1, 3)];
@@ -1124,17 +1125,9 @@ void visualizeVolume() {
  * Raw FFT bins are mapped as pixels on the strip. The strip fades between the current palette colors in a big gradient, and pulses to the beat
  */
 void visualizePitch() {
-  CHSV pitchPalette[4]; //Declare a new palette array for use in this VE, copy our current palette to it (for us to more easily modify later)
-  //memcpy(pitchPalette, curPalette, sizeof(curPalette));
-
   getBassKicked(); //Also update the bass kick detection
-  short bassKickProgress = getBassKickProgress() * 255;
-  
-  for (int i = 0; i <= 4; i++) {
-    pitchPalette[i] = blend(curPaletteDim[i], curPalette[i], bassKickProgress);
-  }
-
-  
+  //short bassKickProgress = getBassKickProgress() * 255;
+  getBassKickProgress(); //And the bass kick progress - Neither are used here but updates values needed elsewhere
 
   /* Gradient handling: Smoothly fade between the four palette colors along the half strip we're working with
    * We'll divide the half of the strip we're working with into three sections (one for each transition between the four palette colors)
@@ -1143,11 +1136,16 @@ void visualizePitch() {
   short sectionPos = 0;
   short section = 0;
   CHSV ledColor;
+
+  short ledBrightnesses[STRIP_HALF]; //Also run through the FFT bins and set some LED brightnesses based on that
+  pitchGetLEDBrightnesses(ledBrightnesses);
+  
   for (int i = 0; i <= STRIP_HALF; i++) { //Iterate through the LEDs on the strip to set
     sectionPos++;
     if (sectionPos >= PITCH_SECTION_SIZE) { sectionPos = 0; section++; }
-    ledColor = blend(pitchPalette[section], pitchPalette[section + 1], ((float)(sectionPos) / PITCH_SECTION_SIZE) * 255); //Now find the base color for this LED - Blend between the two palette colors we're between using the position into this "section" we're at
-    leds[STRIP_HALF - i] = blend(CHSV(0, 0, 0), ledColor, pitchGetLEDBrightness(i)); //Then blend that color we found with black depending on how loud the corresponding FFT bins are
+    ledColor = blend(curPalette[section], curPalette[section + 1], ((float)(sectionPos) / PITCH_SECTION_SIZE) * 255); //Now find the base color for this LED - Blend between the two palette colors we're between using the position into this "section" we're at
+    ledColor.v = ledBrightnesses[i]; //Then change that color's value (brightness) based on how loud this pixel's set of FFT bins are
+    leds[STRIP_HALF - i] = ledColor; //Finally, set this pixel and move onto the next
   }
 
   mirrorStrip();
@@ -1155,11 +1153,41 @@ void visualizePitch() {
 
 
 /**
- * Returns a brightness (0-255) for LED #x on the led strip (for VE Pitch)
+ * Returns a list of brightness (0-255) for each LED on the LED strip (for VE Pitch)
  * Accounts only for brightness changes from the LED's corresponding FFT bins
  */
-short pitchGetLEDBrightness(int x) {
-  return 255;
+void pitchGetLEDBrightnesses(short * ret) {
+  //short ret[STRIP_HALF];
+
+  /*Writing down my thought process to keep my sanity: We need an exponential curve of some sort to help map FFT bins to pixels. What kind of curve? I honestly have no idea
+  But just to get something down imma use: max bin = 10^(a * pixel)
+  To grab that a value, some substitution is used to calculate/store it in PITCH_BIN_EXP
+  y = 10^(ax)
+
+  We know a point on this curve - the max bin (y) should be at 511 (highest bin the audio library gives us) at the strip half point (x, using 45 here)
+  511 = 10^(a * 45)
+
+  Take the log of both sides and we get log(511) = a * 45 - Then just divide by STRIP_HALF and we'll have our value!
+  
+  PITCH_BIN_EXP = log(511) / STRIP_HALF
+
+  If anyone actually knows what they're doing please submit a PR - 48
+  */
+  
+  short lastMaxBin = 0;
+  short newMaxBin = 0;
+  for (int i = 0; i <= STRIP_HALF; i++) { //Find a brightness for each LED
+    newMaxBin = pow(10, i * PITCH_BIN_EXP); //First, calculate the highest bin we should read for this pixel
+    ret[i] = fft.read(lastMaxBin, newMaxBin) * 255 * 1.5; //Then, grab all FFT bins between the last bin read for the previous pixel, and our new max bin (* by 255 for an LED brightness)
+    //Serial.print(ret[i]);
+    //Serial.print(" ");
+    //Serial.print(lastMaxBin);
+    //Serial.print("-");
+    //Serial.println(newMaxBin);
+    lastMaxBin = newMaxBin + 1; //Then store our current max bin for the next pixel to use (add 1 so we don't use the same bin twice)
+  }
+  //Serial.println();
+  //return ret;
 }
 
 
