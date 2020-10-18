@@ -151,7 +151,8 @@ unsigned long curMillis = 0; //Current time
 RunningAverage bassChangeAverage(33); //Running average of detected bass changes, used for bass kick detection
 RunningAverage shortBassAverage(3); //Shorter running average of the bass, smoothes out the wrinkles so we get  s m o o t h  l i n e s
 RunningAverage shortNotBassAverage(9); //Short running average of the higher frequency bins (a.k.a. notBass), also used for bass kick detection
-RunningAverage longNotBassAverage(70); //Longer running average of the NotBass
+RunningAverage longNotBassAverage(60); //Longer running average of the NotBass (old = 70)
+float longNotBassAverageHistory[10] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; //History of our longNotBassAverage, used to detect changes in songs/parts of a song for pallete changes
 float lastShortBassAverage; //The short bass average last time it was checked, also used for bass kick detection
 float lastBassChange; //The last bass change last time it was checked. You know the drill.
 bool bassChangeIncreasing = true; //Is the bass change increasing or decreasing? Helps detect when it peaks.
@@ -434,10 +435,18 @@ void loop() {
     if (!idling && fft.available()) { //FFT has new data and we aren't idling, let's visualize it!
      //bassChangeAverage.addValue(getFFTSection(0));
       shortBassAverage.addValue(getFFTSection(0)); //Add some FFT bins to our averages for beat detection
-      for (short section = 2; section <= 3; section++) { //Here, add bins 2 and 3 to the NotBass averages
-        float fftSection = getFFTSection(section);
-        shortNotBassAverage.addValue(fftSection);
-        longNotBassAverage.addValue(fftSection);
+      float notBassDelta = updateNotBassAverages();
+      
+      //DEBUG: Print FFT bins to serial
+      Serial.print(String(getFFTSection(0) * 5) + " ");
+      Serial.print(String(getFFTSection(1) * 5) + " ");
+      Serial.print(String(getFFTSection(2) * 5) + " ");
+      Serial.print(String(getFFTSection(3) * 5) + " ");
+      Serial.print(String(longNotBassAverage.getAverage() * 3) + " ");
+      Serial.println(notBassDelta);
+      
+      if (notBassDelta >= 1.4) { //If we've gotten a drastic change in music, swap a new palette
+        setNewPalette(curPaletteIndex + 1);
       }
       
       switch (curEffect) {
@@ -461,7 +470,6 @@ void loop() {
           break;
       }
       FastLED.show();
-  
       
     } else if (idling && idlePos >= 1 && curMillis >= nextIdleUpdateMillis) { //We're idling, playing the idle animation, and it's time for an update!
       nextIdleUpdateMillis = curMillis + idleUpdateMs;
@@ -522,7 +530,7 @@ void loop() {
     digitalWrite(LED_BUILTIN, heartbeatState);
   }
 
-  for (int i = 0; i <= 3; i++) { //Handle smooth fading for the marquee lights
+  /*for (int i = 0; i <= 3; i++) { //Handle smooth fading for the marquee lights   //Edit: Cab said no, begone!
     if (marqueeOn[i] && marqueeBrightness[i] < 255) { //If we still need to fade on this light...
       marqueeBrightness[i] = min((int)marqueeBrightness[i] + 40, 255); //...increment its brightness (but cap it at 255)
       Serial.println(marqueeBrightness[i]);
@@ -532,7 +540,7 @@ void loop() {
       marqueeBrightness[i] = max((int)marqueeBrightness[i] - 40, 0); //...decrement its brightness (but prevent it from going below 0!)
       analogWrite(pinLightsMarquee[i], marqueeBrightness[i]);
     }
-  }
+  }*/
   
   delay(10);
 }
@@ -586,6 +594,23 @@ float getFFTSection(int id) {
 }
 
 
+/**
+ * Updates the long not bass (FFT section 2/3) averages
+ * Returns the difference % between the current longNotBassAverage and the average from several updates ago - >1 means the average is getting bigger
+ */
+float updateNotBassAverages() {
+  for (short section = 2; section <= 3; section++) { //Here, add bins 2 and 3 to the NotBass averages
+    float fftSection = getFFTSection(section);
+    shortNotBassAverage.addValue(fftSection);
+    longNotBassAverage.addValue(fftSection);
+  }
+
+  for (short i = 0; i <= 8; i++) { //Now for the long average history: Roll all the averages back a position...
+    longNotBassAverageHistory[i] = longNotBassAverageHistory[i + 1];
+  }
+  longNotBassAverageHistory[9] = longNotBassAverage.getAverage(); //Then add our new average to the top of the list
+  return abs(longNotBassAverageHistory[9] / longNotBassAverageHistory[0]); //Finally, return the new value / the old value for a percent change
+}
 /**
  * Returns whether a bass kick has happened since the last call to getBassKicked()
  * Used for beat-based effects
