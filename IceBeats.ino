@@ -162,6 +162,7 @@ bool isAlternateBassKick = false; //Alternates every time the bass is kicked, us
 short bassBrightness; //Track the current and last brightnesses for the bass light, used for fading it out when music/idle animations stop
 short lastBassBrightness = 0;
 bool idleBassBrightnessDecreasing = false; //Is the bass brightness value increasing or decreasing?
+unsigned long lastVESwap = 0; //Last time the VE was swapped (VEs are swapped during quiet portions of songs)
 
 
 short bass_scroll_pos = 0; //Pulse/punch effects - The bass kick scroll's position and color
@@ -445,8 +446,9 @@ void loop() {
       Serial.print(String(longNotBassAverage.getAverage() * 3) + " ");
       Serial.println(notBassDelta);
       
-      if (notBassDelta >= 1.4) { //If we've gotten a drastic change in music, swap a new palette
+      if (notBassDelta >= 1.4 && curMillis - lastVESwap >= 5000) { //If we've gotten a drastic change in music (and haven't done a VE swap in a while), swap a new palette (todo: Will probably swap visualization effects in the future)
         setNewPalette(curPaletteIndex + 1);
+        lastVESwap = curMillis;
       }
       
       switch (curEffect) {
@@ -724,7 +726,7 @@ void setNewPalette(int paletteId) {
   memcpy(curPalette, palettes[curPaletteIndex], sizeof(curPalette)); //Copy the contents of the new palette to use to curPalette[]
   
   for (short i = 0; i <= 3; i++) { //Also set the current dim palette's values to be a dim version of the current palette
-    curPaletteDim[i] = CHSV(curPalette[i].h, curPalette[i].s * 0.55, curPalette[i].v * 0.6);
+    curPaletteDim[i] = CHSV(curPalette[i].h, curPalette[i].s * 0.87, curPalette[i].v * 0.6);
   }
 
   if (curEffect == VEPulse) { //Visualizing pulse or punch, also set the color to use for bass kicks
@@ -1196,14 +1198,18 @@ void pitchGetLEDBrightnesses(short * ret) {
   
   PITCH_BIN_EXP = log(511) / STRIP_HALF
 
+
+  (Ninja edit: This curve spends a lotta time on the low end, gonna offset x by 1 to help it get to the higher frequencies faster)
+  
   If anyone actually knows what they're doing please submit a PR - 48
   */
   
   short lastMaxBin = 0;
   short newMaxBin = 0;
   for (int i = 0; i <= STRIP_HALF; i++) { //Find a brightness for each LED
-    newMaxBin = pow(10, i * PITCH_BIN_EXP); //First, calculate the highest bin we should read for this pixel
-    ret[i] = fft.read(lastMaxBin, newMaxBin) * 255 * 1.5; //Then, grab all FFT bins between the last bin read for the previous pixel, and our new max bin (* by 255 for an LED brightness)
+    newMaxBin = pow(10, (i + 1) * PITCH_BIN_EXP); //First, calculate the highest bin we should read for this pixel
+    //newMaxBin = pow(i, 1.54); //Alternative method - Less exp, more linear, not quite as good imo. Also hardcoded for a 90 px strip (45 half)
+    ret[i] = fft.read(lastMaxBin, newMaxBin) * 255 * 2.25; //Then, grab all FFT bins between the last bin read for the previous pixel, and our new max bin (* by 255 for an LED brightness)
     //Serial.print(ret[i]);
     //Serial.print(" ");
     //Serial.print(lastMaxBin);
