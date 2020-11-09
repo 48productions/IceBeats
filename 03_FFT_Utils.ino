@@ -68,7 +68,7 @@ float updateNotBassAverages() {
     longNotBassAverageHistory[i] = longNotBassAverageHistory[i + 1];
   }
   longNotBassAverageHistory[9] = longNotBassAverage.getAverage(); //Then add our new average to the top of the list
-  return abs(longNotBassAverageHistory[9] / longNotBassAverageHistory[0]); //Finally, return the new value / the old value for a percent change
+  return longNotBassAverageHistory[9] / longNotBassAverageHistory[0]; //Finally, return the new value / the old value for a percent change
 }
 
 
@@ -231,13 +231,13 @@ void pitchGetLEDBrightnesses(bool fullStrip) {
       maxCommon = fftLEDBrightnesses[i];
     }
   }
-  fftLEDBrightnesses[STRIP_HALF] = fftLEDBrightnesses[STRIP_HALF - 1]; //Account for the x+1 offset by duplicating the last LED (we also don't read the FFT bins for it since we'd be trying to read bins that don't exist)
 
-  commonFreq.addValue(((float)maxIndex - COMMON_FREQ_MIN) / (COMMON_FREQ_MAX - COMMON_FREQ_MIN)); //Finally, calculate our common frequency position based on how far into our "common range" the loudest frequency was
+  commonFreq = ((float)maxIndex - COMMON_FREQ_MIN) / (COMMON_FREQ_MAX - COMMON_FREQ_MIN);
+  commonFreqAvg.addValue(commonFreq); //Finally, calculate our common frequency position based on how far into our "common range" the loudest frequency was
   /*Serial.print(COMMON_FREQ_MIN);
   Serial.print("-");
   Serial.print(COMMON_FREQ_MAX);
   Serial.print(" ");*/
-  Serial.println(commonFreq.getAverage());
+  //Serial.println(commonFreq.getAverage());
   //Serial.println();
 }

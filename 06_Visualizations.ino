@@ -206,7 +206,10 @@ void visualizeKick() {
   for (int i = 1; i <= 3; i++) {
     sectionSize[i] = (rawSectionSize[i] / rawSectionSum) * STRIP_FOURTH; //...then divide each section by the sum to find their percentage of the sum
     //Finally, multiply each section's size by the area on the strip to draw all the non-bass sections to to get how big each section is in pixels
+    //Serial.print(sectionSize[i]);
+    //Serial.print(" ");
   }
+  //Serial.println(scrollOffset);
 
 
   //Is it time to update the scroll yet?

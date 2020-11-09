@@ -27,10 +27,15 @@ void mirrorStrip() {
  * Sets a new color palette to use
  */
 void setNewPalette(int paletteId) {
-  curPaletteIndex = wrapValue(paletteId, 0, MAX_PALETTE); //Wrap around palette values in case we lazily just give this function "curPalette + 1"
+  /*curPaletteIndex = wrapValue(paletteId, 0, MAX_PALETTE); //Wrap around palette values in case we lazily just give this function "curPalette + 1"
   //if (curPaletteIndex < 0) { curPaletteIndex = MAX_PALETTE; }
   //if (curPaletteIndex > MAX_PALETTE) { curPaletteIndex = 0; }
-  memcpy(curPalette, palettes[curPaletteIndex], sizeof(curPalette)); //Copy the contents of the new palette to use to curPalette[]
+  memcpy(curPalette, palettes[curPaletteIndex], sizeof(curPalette)); //Copy the contents of the new palette to use to curPalette[]*/
+
+  curPalette[0] = CHSV((1-commonFreqAvg.getAverage()) * 180, 255, 255);
+  curPalette[1] = CHSV(max(curPalette[0].h - 23, 0), 220, 255);
+  curPalette[2] = CHSV(max(curPalette[0].h - 33, 0), 180, 255);
+  curPalette[3] = CHSV(max(curPalette[0].h - 40, 0), 55, 255);
   
   for (short i = 0; i <= 3; i++) { //Also set the current dim palette's values to be a dim version of the current palette
     curPaletteDim[i] = CHSV(curPalette[i].h, curPalette[i].s * 0.87, curPalette[i].v * 0.6);
