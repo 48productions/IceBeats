@@ -22,7 +22,10 @@
  * CONFIGURATION *
  ****************/
 #define STRIP_LENGTH 90 //Number of LEDs in the strip
-#define DATA_PIN_STRIP 5 //Pin connected to the LED strip
+#define STRIP_DATA 5 //Pin connected to the LED strip
+
+#define STRIP_BASS_LENGTH 20 //Number of LEDs in our bass neon strip
+#define STRIP_BASS_DATA 9 //Pin connected to the bass neon strip
 
 #define DEBUG_FFT_BINS true //Set true to test FFT section responsiveness - bin sections are mapped to the brightness of specific pixels
 
@@ -110,6 +113,7 @@ AudioConnection          patchCord3(amp, peak);
 // GUItool: end automatically generated code
 
 CRGB leds[STRIP_LENGTH];
+CRGB leds_bass[STRIP_LENGTH];
 
 Bounce debug0 = Bounce(PIN_DEBUG_0, 5); //DEBUG 0: Lighting test button
 Bounce debug1 = Bounce(PIN_DEBUG_1, 5); //DEBUG 1: Swap visualization effect
@@ -156,6 +160,7 @@ CHSV curPalette[4] = palettes[0]; //Current palette colors in use
 CHSV curPaletteDim[4] = palettes[0]; //A slightly dimmed version of the current palette, used for "pulse to the beat" effects
 
 unsigned long curMillis = 0; //Current time
+unsigned long lastUpdateMillis = 0; //Last time an update happened
 
 RunningAverage bassChangeAverage(33); //Running average of detected bass changes, used for bass kick detection
 RunningAverage shortBassAverage(3); //Shorter running average of the bass, smoothes out the wrinkles so we get  s m o o t h  l i n e s

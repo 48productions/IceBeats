@@ -185,6 +185,9 @@ void updatePeak() {
  * Called when fft.available() and we're not idling
  */
 void updateVisualization() {
+  //Serial.println(curMillis - lastUpdateMillis); //Debug: Benchmark how fast updates are happening (disable the code to force 60fps first!)
+  //lastUpdateMillis = curMillis;
+  
   //bassChangeAverage.addValue(getFFTSection(0));
   shortBassAverage.addValue(getFFTSection(0)); //Add some FFT bins to our averages for beat detection
   float notBassDelta = updateNotBassAverages();

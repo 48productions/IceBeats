@@ -14,7 +14,8 @@ void setup() {
   fft.windowFunction(AudioWindowHamming1024);
   
   Serial.begin(9600);
-  LEDS.addLeds<WS2812, DATA_PIN_STRIP, GRB>(leds, STRIP_LENGTH);
+  LEDS.addLeds<WS2812, STRIP_DATA, GRB>(leds, STRIP_LENGTH);
+  LEDS.addLeds<WS2812, STRIP_BASS_DATA, GRB>(leds_bass, STRIP_BASS_LENGTH);
   LEDS.setBrightness(84);
 
   pinMode(PIN_DEBUG_0, INPUT_PULLUP); //Pinmode ALL the pins
@@ -22,7 +23,7 @@ void setup() {
   pinMode(PIN_DEBUG_2, INPUT_PULLUP);
   pinMode(LED_BUILTIN, OUTPUT);
   
-  pinMode(DATA_PIN_STRIP, OUTPUT);
+  pinMode(STRIP_DATA, OUTPUT);
   pinMode(PIN_BASS_LIGHT, OUTPUT);
   pinMode(PIN_BASS_SEL_1, OUTPUT);
   pinMode(PIN_BASS_SEL_2, OUTPUT);
@@ -82,24 +83,29 @@ void loop() {
     updateSerialLights();
   }
 
-  if (lightTestEnabled) { //In the lighting test, update some lights boi
-    updateLightTest();
+  if (curMillis >= lastUpdateMillis + 16) { //Time for an update, gotta keep a 60fps update rate
+    Serial.println(curMillis - lastUpdateMillis);
+    lastUpdateMillis = curMillis;
     
-  } else { //Not in the lighting test, update visualizations/idles/etc
-    if (peak.available()) { //We have peak data to read! READ IT!
-      updatePeak();
-    }
-  
-    if (!idling && fft.available()) { //FFT has new data and we aren't idling, let's visualize it!
-      updateVisualization();
+    if (lightTestEnabled) { //In the lighting test, update some lights boi
+      updateLightTest();
       
-    } else if (idling && idlePos >= 1 && curMillis - lastIdleUpdateMillis >= idleUpdateMs) { //We're idling, playing the idle animation, and it's time for an update!
-      updateIdleAnim();
-      
-    } else if (idling && idlePos < 1) { //Not running a visualization or idle animation (either finished an idle or just stopped getting sound), just fade out the strip and bass lightsthis cycle
-      updateIdle();
+    } else { //Not in the lighting test, update visualizations/idles/etc
+      if (peak.available()) { //We have peak data to read! READ IT!
+        updatePeak();
+      }
+    
+      if (!idling && fft.available()) { //FFT has new data and we aren't idling, let's visualize it!
+        updateVisualization();
+        
+      } else if (idling && idlePos >= 1 && curMillis - lastIdleUpdateMillis >= idleUpdateMs) { //We're idling, playing the idle animation, and it's time for an update!
+        updateIdleAnim();
+        
+      } else if (idling && idlePos < 1) { //Not running a visualization or idle animation (either finished an idle or just stopped getting sound), just fade out the strip and bass lightsthis cycle
+        updateIdle();
+      }
+    
     }
-  
   }
   
   /*for (int i = 0; i <= maxKeycode; i++) { //Handle keypresses!
@@ -151,5 +157,5 @@ void loop() {
     }
   }*/
   
-  delay(10);
+  //delay(10);
 }
