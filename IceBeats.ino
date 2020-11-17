@@ -67,6 +67,8 @@ const int STRIP_8TH = STRIP_LENGTH / 8;
 const int STRIP_16TH = STRIP_LENGTH / 16;
 const int STRIP_32ND = STRIP_LENGTH / 32;
 
+const int STRIP_BASS_HALF = STRIP_BASS_LENGTH / 2;
+
 const int PULSE_MAX_SIZE_BASS = STRIP_LENGTH / 6; //Maximum section sizes for VE Pulse (based on strip length)
 const int PULSE_MAX_SIZE_MID = STRIP_LENGTH / 6;
 const int PULSE_MAX_SIZE_HIGH = STRIP_LENGTH / 8;
@@ -113,7 +115,7 @@ AudioConnection          patchCord3(amp, peak);
 // GUItool: end automatically generated code
 
 CRGB leds[STRIP_LENGTH];
-CRGB leds_bass[STRIP_LENGTH];
+CRGB ledsBass[STRIP_LENGTH];
 
 Bounce debug0 = Bounce(PIN_DEBUG_0, 5); //DEBUG 0: Lighting test button
 Bounce debug1 = Bounce(PIN_DEBUG_1, 5); //DEBUG 1: Swap visualization effect
@@ -205,6 +207,8 @@ unsigned long lightTestLastToggleMillis = 0;
 unsigned long lightTestLastStripUpdateMillis = 0;
 short lightTestStripPos = 0; //...and some other variables to track the state of the LED strip test
 short lightTestStripColor = 0;
+
+bool reactiveBass = true; //Whether the bass neon LED strips should react to SM (false) or the audio signal (true)
 
 
 

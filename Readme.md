@@ -2,33 +2,44 @@
 *"it's like a firebeat, but **cooler**"*
 
 ## Introduction
-IceBeats is yet *another* Teensy sketch for real-time music visualization on an addressable LED strip.
-It aims for a simple hardware setup that provides dynamic music visualizations.
+IceBeats gives you real-time music visualization on an addressable LED strip.
 
-This project is aimed as a (partial) IO replacement for dance game cabinets running Stepmania. Though tailored towards my cabinet specifically, it should be easy to adapt for other setups (or dancegame-less setups that only want music visualization).
+The hardware setup is dirt simple - Just grab a Teensy 3.2, an LED strip, and maybe a few basic components. No bloated bluetooth/wifi control or complex setup, just pure RGB goodness (instead there's a bunch of 100% optional bloat, described below).
 
-It is designed around the Teensy Audio Library to run on the Teensy 3.2. Input is taken from an RCA audio jack, and visualized to a WS2812B LED strip.
-Other Teensies that can run the audio library are likely compatible too (though the library is not fully working on the 4.0 at time of writing)
+
+100% optional bloat: If you're planning on throwing this on a StepMania cabinet (like I am), this code will drive your cabinet lights as well, nothing bad happens if you don't configure it though. Input is also "supported".
+
 
 **Keep in mind this project is still a work in progress!**
 
 
-## Hardware
- * Accepts audio input via RCA/mono 3.5mm jack
- * Designed around Teensy 3.2, other Audio-capable Teensy boards likely compatible
- * Output to WS2812B LED Strip via FastLED (other strip types likely compatible)
- * Blinks an external decorative light strand to the beat (designed to drive cheap two wire strands where alternate LEDs/colors are driven by reversing the strip polarity, using a L293D H-Bridge or similar)
+## Lighting Hardware
+Code support for these are built-in - all 99% configurable, use any you like!
+
+ * Visualization strip - An addressable RGB LED strip for visualizations - designed for 60-90 leds, configurable
+ * Bass light strand - Designed for low voltage two-wire LED string lights, blinks to the beat.
+    * Designed for two-wire strands where alternate LEDs/colors are driven by reversing the strip polarity using a L293D H-Bridge, single-color strands can be used too!
+ * Bass LED strip - Another addressable RGB LED strip, blinks to the beat (and automagically switches to SM control, if available)
+
+## Electronics Hardware
+ * Accepts audio input via RCA/mono 3.5mm jack (or any other input Teensy's audio library supports, like USB, through easy mods)
+ * Designed around Teensy 3.2, other Audio-capable Teensy boards likely compatible (The 4.0 doesn't look to be 100% compatible at time of writing)
  
 ## Visualization
  * FFT-based music visualization using the Teensy Audio Library
- * Multiple visualization effects and color palettes
+ * Multiple visualization effects and dynamic, music-based color palettes
+ * Idle animations for when no music is playing
  
 ## StepMania IO
- * Accepts input on digital IOs to simulate keystrokes
- * Drives cabinet/pad lighting via Serial (Reads data from Stepmania's SextetStream format, use either SextetStreamToFile on Linux or Win32Serial on Windows (if using SM5.3))
+ * Drives StepMania cabinet/pad lighting (reads the standard SextetStream format via serial, configure either SextetStreamToFile (Linux) or Win32Serial (Windows, SM5.3). Other programs are untested but probably work.
+ * Sends input via keystrokes (configurable, this is NOT your ideal input board though - you should probably go buy a separate board instead)
  
 ## Todo:
- * Planned: Multiple idle animations to play when there is no music
- * Planned: Drive two more LED strips for bass neon replacements
- * Planned: Cycle color palettes/visualizations
- * Todo: Everything else :(
+ * Todo: A lot, this is a WIP :(
+
+## License
+I'd greatly apprecate it if you credit/link back to this repo if you use this code somewhere
+
+That being said,
+
+¯\_(ツ)_/¯

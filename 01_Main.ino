@@ -15,7 +15,7 @@ void setup() {
   
   Serial.begin(9600);
   LEDS.addLeds<WS2812, STRIP_DATA, GRB>(leds, STRIP_LENGTH);
-  LEDS.addLeds<WS2812, STRIP_BASS_DATA, GRB>(leds_bass, STRIP_BASS_LENGTH);
+  LEDS.addLeds<WS2812, STRIP_BASS_DATA, GRB>(ledsBass, STRIP_BASS_LENGTH);
   LEDS.setBrightness(84);
 
   pinMode(PIN_DEBUG_0, INPUT_PULLUP); //Pinmode ALL the pins
@@ -84,7 +84,7 @@ void loop() {
   }
 
   if (curMillis >= lastUpdateMillis + 16) { //Time for an update, gotta keep a 60fps update rate
-    Serial.println(curMillis - lastUpdateMillis);
+    //Serial.println(curMillis - lastUpdateMillis); //Debug: Print update rate
     lastUpdateMillis = curMillis;
     
     if (lightTestEnabled) { //In the lighting test, update some lights boi
@@ -104,8 +104,20 @@ void loop() {
       } else if (idling && idlePos < 1) { //Not running a visualization or idle animation (either finished an idle or just stopped getting sound), just fade out the strip and bass lightsthis cycle
         updateIdle();
       }
-    
     }
+
+    //Now for the bass LED strip:
+    short bassLEDSize = getBassSize();
+    fadeToBlackBy(ledsBass, STRIP_BASS_LENGTH, 150); //Fade out the last update from the strip a bit
+
+    short hueOffset = 0;
+    for (int i = 1; i <= bassLEDSize; i++) {
+      ledsBass[i - 1] = CHSV(curPalette[0].h - hueOffset, curPalette[0].s, curPalette[0].v);
+      ledsBass[STRIP_BASS_LENGTH - i] = CHSV(curPalette[0].h - hueOffset, curPalette[0].s, curPalette[0].v);
+      hueOffset += 5;
+    }
+      
+    
   }
   
   /*for (int i = 0; i <= maxKeycode; i++) { //Handle keypresses!

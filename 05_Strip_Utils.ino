@@ -92,3 +92,19 @@ CRGB getLightTestStripColor() {
       return CRGB::Black;
   }
 }
+
+
+
+
+/**
+ * Returns the size of the bass 
+ */
+short getBassSize() {
+  if (reactiveBass) {
+    //return getFFTSection(0) * STRIP_BASS_HALF;
+    return (float)(bassBrightness) / 255 * STRIP_BASS_HALF;
+  } else { //SM-controlled bass
+    return 10;
+  }
+  
+}

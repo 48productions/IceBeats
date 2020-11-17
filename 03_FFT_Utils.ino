@@ -92,9 +92,9 @@ bool getBassKicked() {
   bool bassKicked = false;
 
   bool notBassBelowThreshold = curNotBassValue <= curLongNotBassValue * 0.89; //Check if our NotBass is below a certain threshold
-  bool bassAboveThreshold = curBassChange >= curBassChangeAverage * (notBassBelowThreshold ? 3.35 : 3.49); //Check if our bass change is above a certain threshold (lower it slightly if notbass is low, or raise it if notbass is high) (Non-notbass ORIG: 3.45)
+  bool bassAboveThreshold = curBassChange >= curBassChangeAverage * (notBassBelowThreshold ? 3.4 : 3.54); //Check if our bass change is above a certain threshold (lower it slightly if notbass is low, or raise it if notbass is high) (Non-notbass ORIG: 3.45)
 
-  if (bassAboveThreshold && curBassChangeAverage >= 0.007) { //Did our bass change enough above the average (and above an arbitrary "volume" threshold)?
+  if (bassAboveThreshold && curBassChangeAverage >= 0.009) { //Did our bass change enough above the average (and above an arbitrary "volume" threshold)?
     //bassChangeAverage.addValue(lastBassChange);
     bassKicked = true; 
   }
@@ -136,7 +136,7 @@ bool getBassKicked() {
   /*Serial.print(" ");
   Serial.println(abs((curBassValue - curBassAverage)));*/
   
-  if (bassKicked && curMillis >= lastBassKickMillis + 200) { //We detected a new peak earlier and it's been a bit since a bass kick
+  if (bassKicked && curMillis >= lastBassKickMillis + 140) { //We detected a new peak earlier and it's been a bit since a bass kick
     bassKickLengthAverage.addValue(curMillis - lastBassKickMillis); //Add the time between the last kick and now to the average bass kick length
     lastBassKickMillis = curMillis; //Start a new bass kick!
     //Serial.println("6");

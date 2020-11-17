@@ -29,4 +29,6 @@ void idleRainbowWave() {
   if (idlePos >= 785) { //Roughly equal to 250pi (5 cycles), which is when we should stop this idle animation
     idlePos = 0;
   }
+
+  curPalette[0] = CHSV(idleCurHue, 255, 255);
 }
