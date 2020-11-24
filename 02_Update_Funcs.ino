@@ -145,11 +145,11 @@ void updatePeak() {
   //Now let's handle Automagic Gain Control (todo: Is this even the right term in this context?)
   averagePeak.addValue(curPeak);
       
-  if (averagePeak.getAverage() > 0.85) { //LOUD MUSIC
+  if (averagePeak.getAverage() > 0.80) { //LOUD MUSIC
     curGain *= 0.98; //Reduce gain, update the amp!
     amp.gain(curGain);
        
-  } else if (averagePeak.getAverage() < 0.85 && curGain <= 4) { //we quiet bois and we haven't gotten HYPER LOUD yet
+  } else if (averagePeak.getAverage() < 0.80 && curGain <= 4) { //we quiet bois and we haven't gotten HYPER LOUD yet
     curGain *= 1.0015; //Slightly increase gain, update amp
     amp.gain(curGain);
   }
@@ -200,10 +200,11 @@ void updateVisualization() {
   Serial.print(String(longNotBassAverage.getAverage() * 3) + " ");
   Serial.println(notBassDelta);*/
       
-  /*if (notBassDelta >= 1.4 && curMillis - lastVESwap >= 5000) { //If we've gotten a drastic change in music (and haven't done a VE swap in a while), swap a new palette (todo: Will probably swap visualization effects in the future)
-    setNewPalette(curPaletteIndex + 1);
+  if (notBassDelta >= 1.4 && curMillis - lastVESwap >= 5000) { //If we've gotten a drastic change in music (and haven't done a VE swap in a while), swap a new VE
+    //setNewPalette(curPaletteIndex + 1);
+    setNewVE(random(1, MAX_VE + 1));
     lastVESwap = curMillis;
-  }*/
+  }
 
   pitchGetLEDBrightnesses(curEffect == VEPitch); //Run VE Pitch's LED Brightness function (it also calculates our common frequency)
 
