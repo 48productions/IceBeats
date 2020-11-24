@@ -149,7 +149,7 @@ void updatePeak() {
     curGain *= 0.98; //Reduce gain, update the amp!
     amp.gain(curGain);
        
-  } else if (averagePeak.getAverage() < 0.80 && curGain <= 4) { //we quiet bois and we haven't gotten HYPER LOUD yet
+  } else if (averagePeak.getAverage() < 0.80 && curGain <= 3.5) { //we quiet bois and we haven't gotten HYPER LOUD yet
     curGain *= 1.0015; //Slightly increase gain, update amp
     amp.gain(curGain);
   }

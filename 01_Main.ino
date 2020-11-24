@@ -16,7 +16,7 @@ void setup() {
   Serial.begin(9600);
   LEDS.addLeds<WS2812, STRIP_DATA, GRB>(leds, STRIP_LENGTH);
   LEDS.addLeds<WS2812, STRIP_BASS_DATA, GRB>(ledsBass, STRIP_BASS_LENGTH);
-  LEDS.setBrightness(84);
+  LEDS.setBrightness(94);
 
   pinMode(PIN_DEBUG_0, INPUT_PULLUP); //Pinmode ALL the pins
   pinMode(PIN_DEBUG_1, INPUT_PULLUP);
