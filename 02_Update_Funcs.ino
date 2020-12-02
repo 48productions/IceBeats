@@ -288,7 +288,9 @@ void updateIdle() {
   if (smBassState != lastSMBassState) {
     lastSMBassChange = curMillis;
     reactiveBass = false;
-  } else if (!reactiveBass && curMillis - lastSMBassChange >= 10000) { //Switch to reactive bass after 5 seconds of no bass LED strip changes
+    if (smBassState) { bassKicked = true; } //Light JUST turned on? Grats this is also a bass kick now
+    
+  } else if (!reactiveBass && curMillis - lastSMBassChange >= 10000) { //Switch to reactive bass after 10 seconds of no bass LED strip changes
     reactiveBass = true;
   }
   lastSMBassState = smBassState;

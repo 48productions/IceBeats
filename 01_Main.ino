@@ -91,6 +91,8 @@ void loop() {
       updateLightTest();
       
     } else { //Not in the lighting test, update visualizations/idles/etc
+      updateBassStrip();
+      
       if (peak.available()) { //We have peak data to read! READ IT!
         updatePeak();
       }
@@ -104,8 +106,6 @@ void loop() {
       } else if (idling && idlePos < 1) { //Not running a visualization or idle animation (either finished an idle or just stopped getting sound), just fade out the strip and bass lightsthis cycle
         updateIdle();
       }
-
-      updateBassStrip();
     }
 
   }

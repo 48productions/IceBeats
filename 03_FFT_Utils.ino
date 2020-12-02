@@ -87,17 +87,22 @@ bool getBassKicked() {
   //if (curBassChange > 0) { 
     bassChangeAverage.addValue(curBassChange);
   //}
-  float curBassChangeAverage = bassChangeAverage.getAverage();
-  float curLongNotBassValue = longNotBassAverage.getAverage();
-  bool bassKicked = false;
+  
 
-  bool notBassBelowThreshold = curNotBassValue <= curLongNotBassValue * 0.89; //Check if our NotBass is below a certain threshold
-  bool bassAboveThreshold = curBassChange >= curBassChangeAverage * (notBassBelowThreshold ? 3.4 : 3.54); //Check if our bass change is above a certain threshold (lower it slightly if notbass is low, or raise it if notbass is high) (Non-notbass ORIG: 3.45)
-
-  if (bassAboveThreshold && curBassChangeAverage >= 0.009) { //Did our bass change enough above the average (and above an arbitrary "volume" threshold)?
-    //bassChangeAverage.addValue(lastBassChange);
-    bassKicked = true; 
-  }
+  if (reactiveBass) { //Reactive bass: Do some magic to our FFT results, and see if the bass kicked that way. Not super accurate, but works in a pinch for bass-heavy songs. Kinda spammy otherwise at this time.
+    float curBassChangeAverage = bassChangeAverage.getAverage();
+    float curLongNotBassValue = longNotBassAverage.getAverage();
+    bassKicked = false;
+  
+    bool notBassBelowThreshold = curNotBassValue <= curLongNotBassValue * 0.89; //Check if our NotBass is below a certain threshold
+    bool bassAboveThreshold = curBassChange >= curBassChangeAverage * (notBassBelowThreshold ? 3.4 : 3.54); //Check if our bass change is above a certain threshold (lower it slightly if notbass is low, or raise it if notbass is high) (Non-notbass ORIG: 3.45)
+  
+    if (bassAboveThreshold && curBassChangeAverage >= 0.009) { //Did our bass change enough above the average (and above an arbitrary "volume" threshold)?
+      //bassChangeAverage.addValue(lastBassChange);
+      bassKicked = true; 
+    }
+    
+  } //SM-controlled bass: Bass kicks happen whenever SM turns on the bass neon light (bassKicked is set true when needed during updateBassStrip() for this, since it also handles switching between reactive and SM modes)
   
   lastBassChange = curBassChange; //Now store the last bass change and average for the next read
   lastShortBassAverage = curBassValue;
@@ -141,9 +146,11 @@ bool getBassKicked() {
     lastBassKickMillis = curMillis; //Start a new bass kick!
     //Serial.println("6");
     alternateBassSel(); //Invert the alternating bass kick variable, drive the bass light selection pins
+    bassKicked = false; //Clear the bass kick flag before we exit!
     return true;
   }
   //Serial.println("0");
+  bassKicked = false;
   return false;
 }
 
