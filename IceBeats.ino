@@ -209,6 +209,10 @@ short lightTestStripPos = 0; //...and some other variables to track the state of
 short lightTestStripColor = 0;
 
 bool reactiveBass = true; //Whether the bass neon LED strips should react to SM (false) or the audio signal (true)
+float bassStripBrightness = 0.01; //"Brightness" (read: percentage of lit pixels) of the bass neon LED strip
+bool smBassState = false; //Track how long it's been since SM has changed the bass light's state
+bool lastSMBassState = false;
+unsigned long lastSMBassChange = 0;
 
 
 

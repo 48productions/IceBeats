@@ -104,20 +104,10 @@ void loop() {
       } else if (idling && idlePos < 1) { //Not running a visualization or idle animation (either finished an idle or just stopped getting sound), just fade out the strip and bass lightsthis cycle
         updateIdle();
       }
+
+      updateBassStrip();
     }
 
-    //Now for the bass LED strip:
-    short bassLEDSize = getBassSize();
-    fadeToBlackBy(ledsBass, STRIP_BASS_LENGTH, 150); //Fade out the last update from the strip a bit
-
-    short hueOffset = 0;
-    for (int i = 1; i <= bassLEDSize; i++) {
-      ledsBass[i - 1] = CHSV(curPalette[0].h - hueOffset, curPalette[0].s, curPalette[0].v);
-      ledsBass[STRIP_BASS_LENGTH - i] = CHSV(curPalette[0].h - hueOffset, curPalette[0].s, curPalette[0].v);
-      hueOffset += 5;
-    }
-      
-    
   }
   
   /*for (int i = 0; i <= maxKeycode; i++) { //Handle keypresses!

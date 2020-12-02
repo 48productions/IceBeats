@@ -77,6 +77,7 @@ void updateSerialLights() {
 
 /**
  * Update function for the lighting test
+ * Called when the lighting test is active
  */
 void updateLightTest() {
   if (curMillis - lightTestStartMillis >= 300000 && !DEBUG_BURNIN)  { //A lotta time has passed since we started the light test (and we're not doing a burn-in), let's just exit it now
@@ -274,3 +275,31 @@ void updateIdle() {
   
   if (bassBrightness > 0) { bassBrightness *= 0.8; analogWrite(PIN_BASS_LIGHT, bassBrightness); } //Did we not completely fade out the bass light during the last idle cycle? Let's keep fading it out here
 }
+
+
+
+
+/**
+ * Update function for the bass LED strip
+ * Called every update when not in the lighting test
+ */
+ void updateBassStrip() {
+  smBassState = bitRead(etcLEDs, 7); //Detect when SM changes the bass light's state to switch between reactive and SM-controlled bass LED strip modes
+  if (smBassState != lastSMBassState) {
+    lastSMBassChange = curMillis;
+    reactiveBass = false;
+  } else if (!reactiveBass && curMillis - lastSMBassChange >= 10000) { //Switch to reactive bass after 5 seconds of no bass LED strip changes
+    reactiveBass = true;
+  }
+  lastSMBassState = smBassState;
+  
+  short bassLEDSize = getBassSize();
+  fadeToBlackBy(ledsBass, STRIP_BASS_LENGTH, 150); //Fade out the last update from the strip a bit
+  
+  short hueOffset = 0;
+  for (int i = 1; i <= bassLEDSize; i++) {
+    ledsBass[i - 1] = CHSV(curPalette[0].h - hueOffset, curPalette[0].s, curPalette[0].v);
+    ledsBass[STRIP_BASS_LENGTH - i] = CHSV(curPalette[0].h - hueOffset, curPalette[0].s, curPalette[0].v);
+    hueOffset += 5; //Offset the hue for a slight gradient across the bass LED strip
+  }
+ }

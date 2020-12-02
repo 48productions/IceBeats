@@ -100,11 +100,17 @@ CRGB getLightTestStripColor() {
  * Returns the size of the bass 
  */
 short getBassSize() {
-  if (reactiveBass) {
+  if (reactiveBass) { //Audio-reactive bass: Use the brightness of the bass LED to control the bass strip's brightness
     //return getFFTSection(0) * STRIP_BASS_HALF;
     return (float)(bassBrightness) / 255 * STRIP_BASS_HALF;
-  } else { //SM-controlled bass
-    return 10;
+    
+  } else { //SM-controlled bass: Fade on/off the bass strip based off Stepmania's bass light output
+    
+    if (bitRead(etcLEDs, 7)) { bassStripBrightness = min(bassStripBrightness * 4, 1); //Bass on? Embrightenify (but not too much)!
+    } else { bassStripBrightness = max(bassStripBrightness * 0.75, 0.01); //Bass off? Dimmerify
+    }
+    
+    return bassStripBrightness * STRIP_BASS_HALF;
   }
   
 }
