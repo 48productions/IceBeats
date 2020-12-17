@@ -43,7 +43,9 @@
 #define PIN_LIGHTS_CLK 2
 #define PIN_LIGHTS_DAT 4
 
-const int pinLightsMarquee[4] = {20, 21, 22, 23}; //PWM-able pins for the 4 marquee lights
+#define USE_PRESET_PALETTES true //Set whether to use pre-set or base palettes off of the music. Pre-set is more visually pleasing, music-based may reflect changes in music better
+
+//const int pinLightsMarquee[4] = {20, 21, 22, 23}; //PWM-able pins for the 4 marquee lights, disabled at this time
 
 
 // STEPMANIA IO (Keystrokes)
@@ -178,7 +180,8 @@ bool isAlternateBassKick = false; //Alternates every time the bass is kicked, us
 short bassBrightness; //Track the current and last brightnesses for the bass light, used for fading it out when music/idle animations stop
 short lastBassBrightness = 0;
 bool idleBassBrightnessDecreasing = false; //Is the bass brightness value increasing or decreasing?
-unsigned long lastVESwap = 0; //Last time the VE was swapped (VEs are swapped during quiet portions of songs)
+unsigned long lastVESwap = 0; //Last time the VE/palette was swapped (they're swapped at major changes in songs)
+unsigned long lastPaletteSwap = 0;
 
 
 short bass_scroll_pos = 0; //Pulse/punch effects - The bass kick scroll's position and color

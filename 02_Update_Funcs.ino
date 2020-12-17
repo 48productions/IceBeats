@@ -201,18 +201,27 @@ void updateVisualization() {
   Serial.print(String(longNotBassAverage.getAverage() * 3) + " ");
   Serial.println(notBassDelta);*/
       
-  if (notBassDelta >= 1.4 && curMillis - lastVESwap >= 5000) { //If we've gotten a drastic change in music (and haven't done a VE swap in a while), swap a new VE
-    //setNewPalette(curPaletteIndex + 1);
-    setNewVE(random(1, MAX_VE + 1));
-    lastVESwap = curMillis;
+  if (curMillis - lastVESwap >= 5000) { //Only detect VE/palette swaps if we've swapped to a new VE for a bit
+    if (notBassDelta >= 1.4) { //If we've gotten a drastic change in music (and haven't done a VE swap in a while), swap a new VE
+      setNewPalette(random(0, MAX_PALETTE + 1));
+      setNewVE(random(1, MAX_VE + 1));
+      lastVESwap = curMillis;
+    } else {
+     if (USE_PRESET_PALETTES) { //Preset palettes - Set a new palette whenever we get a big (but smaller than drastic) notBass change
+        if (notBassDelta >= 1.27 && curMillis - lastPaletteSwap >= 2000) {
+          setNewPalette(random(0, MAX_PALETTE + 1));
+          lastPaletteSwap = curMillis;
+        }
+        
+      } else {
+        setNewPalette(0); //setNewPalette will update the palette colors to use the commonFreq-derived colors, call it every update to get smooth palette fades n such
+      }
+    }
   }
 
   pitchGetLEDBrightnesses(curEffect == VEPitch); //Run VE Pitch's LED Brightness function (it also calculates our common frequency)
 
-  //float commonFreqDelta = commonFreq / commonFreqAvg.getAverage();
-  //if (commonFreqDelta < .25 || commonFreqDelta > 4) { //Detect big changes in the common frequency - If they exist, let's fade to a new palette
-    setNewPalette(curPaletteIndex);
-  //}
+  
       
   switch (curEffect) {
     case VEDebugFFT:

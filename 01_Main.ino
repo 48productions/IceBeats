@@ -32,9 +32,9 @@ void setup() {
   pinMode(PIN_LIGHTS_DAT, OUTPUT);
   pinMode(PIN_LIGHTS_CLK, OUTPUT);
 
-  for (int i = 0; i <= 3; i++) { //Pinmode all the marquee lights
+  /*for (int i = 0; i <= 3; i++) { //Pinmode all the marquee lights
     pinMode(pinLightsMarquee[i], OUTPUT);
-  }
+  }*/
   
   for (int i = 0; i <= maxKeycode; i++) { //Pinmode all the cabinet buttons we're gonna read
     pinMode(keyIOPins[i], INPUT_PULLUP);
