@@ -86,6 +86,18 @@ void loop() {
   if (curMillis >= lastUpdateMillis + 16) { //Time for an update, gotta keep a 60fps update rate
     //Serial.println(curMillis - lastUpdateMillis); //Debug: Print update rate
     lastUpdateMillis = curMillis;
+
+    /*for (int i = 0; i <= 3; i++) { //Handle smooth fading for the marquee lights
+      if (marqueeOn[i] && marqueeBrightness[i] < 1) { //If we still need to fade on this light...
+        marqueeBrightness[i] = min(marqueeBrightness[i] * 2.75, 1); //...increment its brightness (but cap it at 1)
+        //Serial.println(marqueeBrightness[i]);
+        //analogWrite(pinLightsMarquee[i], marqueeBrightness[i] * 255); //My cab said no to smooth fading marquee lights, so writing to pins is disabled but the rest of the code is left enabled since VE Pulse uses these values
+        
+      } else if (!marqueeOn[i] && marqueeBrightness[i] > 0) { //What if we need to fade OFF this light?
+        marqueeBrightness[i] = max(marqueeBrightness[i] * 0.6, 0.01); //...decrement its brightness (but prevent it from going below 0)
+        //analogWrite(pinLightsMarquee[i], marqueeBrightness[i] * 255);
+      }
+    }*/
     
     if (lightTestEnabled) { //In the lighting test, update some lights boi
       updateLightTest();
@@ -107,7 +119,6 @@ void loop() {
         updateIdle();
       }
     }
-
   }
   
   /*for (int i = 0; i <= maxKeycode; i++) { //Handle keypresses!
@@ -146,18 +157,6 @@ void loop() {
     lastHeartbeatFlipMs = curMillis;
     digitalWrite(LED_BUILTIN, heartbeatState);
   }
-
-  /*for (int i = 0; i <= 3; i++) { //Handle smooth fading for the marquee lights   //Edit: Cab said no, begone!
-    if (marqueeOn[i] && marqueeBrightness[i] < 255) { //If we still need to fade on this light...
-      marqueeBrightness[i] = min((int)marqueeBrightness[i] + 40, 255); //...increment its brightness (but cap it at 255)
-      Serial.println(marqueeBrightness[i]);
-      analogWrite(pinLightsMarquee[i], marqueeBrightness[i]);
-      
-    } else if (!marqueeOn[i] && marqueeBrightness[i] > 0) { //What if we need to fade OFF this light?
-      marqueeBrightness[i] = max((int)marqueeBrightness[i] - 40, 0); //...decrement its brightness (but prevent it from going below 0!)
-      analogWrite(pinLightsMarquee[i], marqueeBrightness[i]);
-    }
-  }*/
   
   //delay(10);
 }

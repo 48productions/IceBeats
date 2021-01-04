@@ -52,14 +52,16 @@ void visualizeFFTDebug() {
 /**
 * Visualization effect: Pulse
 * 
-* Bass grows from center of strip, mids grow from 1/4 and 3/4 points, highs grow from edge of strip.
+* Bass grows from center of strip, highs grow from edge of strip. SM-controlled marquee lights turn on colored portions of strip
 * Bass kicks produce faint dots that scroll to the edge of the strip
 */
 void visualizePulse() {
-  short sectionSize[] = {0, 0, 0}; //Size of each visualization section in pixels
+  short sectionSize[] = {0, 0, 0, 0, 0, 0}; //Size of each visualization section in pixels
   sectionSize[0] = getFFTSection(0) * PULSE_MAX_SIZE_BASS;
-  sectionSize[1] = getFFTSection(1) * PULSE_MAX_SIZE_MID;
-  sectionSize[2] = getFFTSection(3) * PULSE_MAX_SIZE_HIGH;
+  sectionSize[1] = getFFTSection(3) * PULSE_MAX_SIZE_HIGH;
+  for (int i = 2; i <= 5; i++) {
+    sectionSize[i] = marqueeBrightness[i - 2] * PULSE_MAX_SIZE_LAMP;
+  }
 
   fadeToBlackBy(leds, STRIP_LENGTH, 90); //Fade out the last update from the strip a bit
 
@@ -79,30 +81,40 @@ void visualizePulse() {
       leds[STRIP_HALF - bass_scroll_pos] = bass_scroll_color;
     }
   }
-
-  //fadeToBlackBy(leds, STRIP_LENGTH, 90); //Fade out the last update from the strip a bit
+  
 
   //For each section to draw, iterate through the number of LEDs to draw. Then, find and add the offset to each LED to draw so it draws in the correct place on the strip
   //High offset: None - Start from 0 and increment upwards
-  for (int i = 0; i < sectionSize[2]; i++) { //Set HIGH
+  for (int i = 0; i < sectionSize[1]; i++) { //Set HIGH
     //leds[i] = curPalette[3]; //Static colors are boring, let's make them pulse to the beat!
     leds[i] = blend(curPaletteDim[3], curPalette[3], bassKickProgress); //If the bass is kicking, blend in a bit of a brighter version of the current palette
   }
 
-  short sectionOffset = STRIP_FOURTH - sectionSize[1] / 2; //Mid offset: 1/4 point on the strip (the center for this section) minus half of this section's size (to draw half on each side of the 1/4 point)
-  for (int i = 0; i < sectionSize[1]; i++) { //Set MID
-    //leds[i + sectionOffset] = curPalette[1];
-    leds[i + sectionOffset] = blend(curPaletteDim[1], curPalette[1], bassKickProgress);
-  }
-
-  sectionOffset = STRIP_HALF - sectionSize[0]; //Bass offset: 1/2 point on the strip minus this section's size
+  short sectionOffset = STRIP_HALF - sectionSize[0]; //Bass offset: 1/2 point on the strip minus this section's size
   for (int i = 0; i < sectionSize[0]; i++) { //Set BASS
     //leds[i + sectionOffset] = curPalette[0];
     leds[i + sectionOffset] = blend(curPaletteDim[0], curPalette[0], bassKickProgress);
   } 
 
-  //Finally, mirror the first half of the strip to the second half
+  //Next, mirror the first half of the strip to the second half
   mirrorStrip();
+
+  //Finally, do the marquee light sections (these shouldn't be mirrored)
+  //First to upper left/right (outer left/right)
+  for (int light = 2; light <= 3; light++) {
+    sectionOffset = STRIP_6TH * (light == 2 ? 1: 5) - sectionSize[light] / 2; //Offsets - Light bar things at 1/6, 2/6, 4/6, and 5/6 of STRIP_LENGTH
+    for (int i = 0; i <= sectionSize[light]; i++) {
+      leds[i + sectionOffset] = blend(curPaletteDim[2], curPalette[2], bassKickProgress);
+    }
+  }
+
+  //Then lower left/right (inner left/right)
+  for (int light = 4; light <= 5; light++) {
+    sectionOffset = STRIP_6TH * (light == 4 ? 2 : 4) - sectionSize[light] / 2;
+    for (int i = 0; i <= sectionSize[light]; i++) {
+      leds[i + sectionOffset] = blend(curPaletteDim[1], curPalette[1], bassKickProgress);
+    }
+  }
 }
 
 
@@ -225,6 +237,9 @@ void visualizeKick() {
     }
   }
 
+  Serial.print(scrollOffset);
+  Serial.print(" ");
+  Serial.println(sectionOffset);
 
   int i = 0; //i is used throughout the rest of this routine, declare/initialize it here
   curOffset = scrollOffset; //Start tracking the beginning of each section we're drawing...

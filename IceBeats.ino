@@ -65,6 +65,7 @@ bool keyIOPressed[] = {false, false, false}; //Is xyz key currently pressed?
 
 const int STRIP_HALF = STRIP_LENGTH / 2; //Convinience variables for half/4th/etc of the strip length
 const int STRIP_FOURTH = STRIP_LENGTH / 4;
+const int STRIP_6TH = STRIP_LENGTH / 6;
 const int STRIP_8TH = STRIP_LENGTH / 8;
 const int STRIP_16TH = STRIP_LENGTH / 16;
 const int STRIP_32ND = STRIP_LENGTH / 32;
@@ -72,7 +73,7 @@ const int STRIP_32ND = STRIP_LENGTH / 32;
 const int STRIP_BASS_HALF = STRIP_BASS_LENGTH / 2;
 
 const int PULSE_MAX_SIZE_BASS = STRIP_LENGTH / 6; //Maximum section sizes for VE Pulse (based on strip length)
-const int PULSE_MAX_SIZE_MID = STRIP_LENGTH / 6;
+const int PULSE_MAX_SIZE_LAMP = STRIP_LENGTH / 8;
 const int PULSE_MAX_SIZE_HIGH = STRIP_LENGTH / 8;
 
 const int PUNCH_MAX_SIZE_BASS = STRIP_LENGTH / 6; //Maximum section sizes for VE Punch
@@ -93,8 +94,6 @@ const double PITCH_BIN_EXP = log10(511) / STRIP_HALF; //Magic number used to hel
 
 const short COMMON_FREQ_MIN = (log10(4)/PITCH_BIN_EXP)-1; //The first and last LED brightness indexes from VE Pitch's brightness function to use for common frequency calculation
 const short COMMON_FREQ_MAX = (log10(42)/PITCH_BIN_EXP)-1; //(For these, we're finding the pixels where FFT bins 4 and 36 are)
-//const short COMMON_FREQ_MIN = 9;
-//const short COMMON_FREQ_MAX = 30;
 
 
 
@@ -203,7 +202,6 @@ unsigned long lastIdleUpdateMillis = 0; //The next time we should update the idl
 const short idleUpdateMs = 25; //How often should we update the idle animation?
 
 short idleCurHue = 0; //Current hue, used for idle effects
-
 bool lightTestEnabled = DEBUG_BURNIN; //If we're currently in the lighting test or not, and when we entered it (default to whether we're running a burn-in or not)
 unsigned long lightTestStartMillis = 0; //Also track some timestamps of when some updates last occured
 unsigned long lightTestLastToggleMillis = 0;
@@ -236,7 +234,7 @@ byte padLEDs = 0; //Pad lights byte (4x pad led per player)
 byte etcLEDs = 0; //Etc lights byte (2x bass light, room for expansion/modification)
 
 bool marqueeOn[4] = {false, false, false, false}; //The current state and brightness of the 4 marquee lights
-short marqueeBrightness[4] = {0, 0, 0, 0};
+float marqueeBrightness[4] = {0.01, 0.01, 0.01, 0.01};
 
 
 

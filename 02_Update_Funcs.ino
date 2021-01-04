@@ -33,7 +33,7 @@ void updateSerialLights() {
             bitWrite(cabLEDs, 4, bitRead(receivedData, 3)); //Marquee down right
             /*for (int light = 0; light <= 3; light++) { //Iterate through the 4 marquee lights
               marqueeOn[light] = bitRead(receivedData, light);
-              }*/
+            }*/
             bitWrite(etcLEDs, 7, bitRead(receivedData, 4)); //Bass L
             bitWrite(etcLEDs, 6, bitRead(receivedData, 5)); //Bass R
             //bitWrite(cabLEDs, 7, bitRead(receivedData, 4)); //Bass L
