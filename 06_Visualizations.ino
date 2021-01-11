@@ -63,7 +63,7 @@ void visualizePulse() {
     sectionSize[i] = marqueeBrightness[i - 2] * PULSE_MAX_SIZE_LAMP;
   }
 
-  fadeToBlackBy(leds, STRIP_LENGTH, 90); //Fade out the last update from the strip a bit
+  fadeToBlackBy(leds, STRIP_LENGTH, 40); //Fade out the last update from the strip a bit
 
   //Did the bass just kick? Start a new bass kick scroll from the end of the current bass section
   if (getBassKicked()) {
@@ -237,9 +237,9 @@ void visualizeKick() {
     }
   }
 
-  Serial.print(scrollOffset);
+  /*Serial.print(scrollOffset);
   Serial.print(" ");
-  Serial.println(sectionOffset);
+  Serial.println(sectionOffset);*/
 
   int i = 0; //i is used throughout the rest of this routine, declare/initialize it here
   curOffset = scrollOffset; //Start tracking the beginning of each section we're drawing...

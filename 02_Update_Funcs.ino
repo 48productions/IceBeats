@@ -305,12 +305,13 @@ void updateIdle() {
   lastSMBassState = smBassState;
   
   short bassLEDSize = getBassSize();
+  //Serial.println(bassLEDSize);
   fadeToBlackBy(ledsBass, STRIP_BASS_LENGTH, 150); //Fade out the last update from the strip a bit
   
   short hueOffset = 0;
-  for (int i = 1; i <= bassLEDSize; i++) {
-    ledsBass[i - 1] = CHSV(curPalette[0].h - hueOffset, curPalette[0].s, curPalette[0].v);
-    ledsBass[STRIP_BASS_LENGTH - i] = CHSV(curPalette[0].h - hueOffset, curPalette[0].s, curPalette[0].v);
-    hueOffset += 5; //Offset the hue for a slight gradient across the bass LED strip
+  for (int i = 0; i < bassLEDSize; i++) {
+    ledsBass[STRIP_BASS_HALF - i - 1] = CHSV(curPalette[0].h - hueOffset, curPalette[0].s, curPalette[0].v);
+    ledsBass[STRIP_BASS_HALF + i] = CHSV(curPalette[0].h - hueOffset, curPalette[0].s, curPalette[0].v);
+    hueOffset += 2; //Offset the hue for a slight gradient across the bass LED strip
   }
  }

@@ -8,9 +8,9 @@
 
 
 void setup() {
-  Keyboard.begin();
+  //Keyboard.begin();
   
-  AudioMemory(16);
+  AudioMemory(10);
   fft.windowFunction(AudioWindowHamming1024);
   
   Serial.begin(9600);
@@ -84,7 +84,11 @@ void loop() {
   }
 
   if (curMillis >= lastUpdateMillis + 16) { //Time for an update, gotta keep a 60fps update rate
-    //Serial.println(curMillis - lastUpdateMillis); //Debug: Print update rate
+    /*Serial.print(curMillis - lastUpdateMillis); //Debug: Print update rate
+    Serial.print(" ");
+    Serial.print(AudioProcessorUsage());
+    Serial.print(" ");
+    Serial.println(AudioMemoryUsage());*/
     lastUpdateMillis = curMillis;
 
     /*for (int i = 0; i <= 3; i++) { //Handle smooth fading for the marquee lights
@@ -151,12 +155,19 @@ void loop() {
       keyIOPressed[i] = false;
     }
   }*/
+
+  Serial.print(curMillis);
+  Serial.print(" ");
+  Serial.print(lastHeartbeatFlipMs);
+  Serial.print(" ");
+  Serial.println(lastUpdateMillis);
   
   if (curMillis - lastHeartbeatFlipMs >= 500) { //500ms since the heartbeat LED toggled states, toggle it now!
     heartbeatState = !heartbeatState;
     lastHeartbeatFlipMs = curMillis;
     digitalWrite(LED_BUILTIN, heartbeatState);
   }
+
   
   //delay(10);
 }

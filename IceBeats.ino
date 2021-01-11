@@ -2,6 +2,7 @@
  * ICEBEATS MUSIC VISUALIZER *
  ****************************/
 
+#define NO_CORRECTION 1
 #define FASTLED_ALLOW_INTERRUPTS 0 //Seems to be required for longer strips (required for 90 LEDs, but not for 60)
 #include "FastLED.h"
 
@@ -13,7 +14,7 @@
 
 #include <Bounce2.h>
 #include "RunningAverage.h"
-#include <Keyboard.h>
+//#include <Keyboard.h>
 
 
 
