@@ -156,11 +156,11 @@ void loop() {
     }
   }*/
 
-  Serial.print(curMillis);
+  /*Serial.print(curMillis);
   Serial.print(" ");
   Serial.print(lastHeartbeatFlipMs);
   Serial.print(" ");
-  Serial.println(lastUpdateMillis);
+  Serial.println(lastUpdateMillis);*/
   
   if (curMillis - lastHeartbeatFlipMs >= 500) { //500ms since the heartbeat LED toggled states, toggle it now!
     heartbeatState = !heartbeatState;

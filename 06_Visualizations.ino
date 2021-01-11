@@ -56,7 +56,8 @@ void visualizeFFTDebug() {
 * Bass kicks produce faint dots that scroll to the edge of the strip
 */
 void visualizePulse() {
-  short sectionSize[] = {0, 0, 0, 0, 0, 0}; //Size of each visualization section in pixels
+  visualizePunch(); //Not ready for release (will make this one not suck eventually I promise)
+  /*short sectionSize[] = {0, 0, 0, 0, 0, 0}; //Size of each visualization section in pixels
   sectionSize[0] = getFFTSection(0) * PULSE_MAX_SIZE_BASS;
   sectionSize[1] = getFFTSection(3) * PULSE_MAX_SIZE_HIGH;
   for (int i = 2; i <= 5; i++) {
@@ -114,7 +115,7 @@ void visualizePulse() {
     for (int i = 0; i <= sectionSize[light]; i++) {
       leds[i + sectionOffset] = blend(curPaletteDim[1], curPalette[1], bassKickProgress);
     }
-  }
+  }*/
 }
 
 
