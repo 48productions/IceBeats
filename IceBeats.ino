@@ -2,8 +2,8 @@
  * ICEBEATS MUSIC VISUALIZER *
  ****************************/
 
-#define NO_CORRECTION 1
-#define FASTLED_ALLOW_INTERRUPTS 0 //Seems to be required for longer strips (required for 90 LEDs, but not for 60)
+//#define NO_CORRECTION 1
+#define FASTLED_ALLOW_INTERRUPTS 0 //Required for longer strips (required for 90 LEDs, but not for 60)
 #include "FastLED.h"
 
 #include <Audio.h>
@@ -25,7 +25,7 @@
 #define STRIP_LENGTH 90 //Number of LEDs in the strip
 #define STRIP_DATA 5 //Pin connected to the LED strip
 
-#define STRIP_BASS_LENGTH 20 //Number of LEDs in our bass neon strip
+#define STRIP_BASS_LENGTH 100 //Number of LEDs in our bass neon strip
 #define STRIP_BASS_DATA 9 //Pin connected to the bass neon strip
 
 #define DEBUG_FFT_BINS true //Set true to test FFT section responsiveness - bin sections are mapped to the brightness of specific pixels
@@ -117,7 +117,7 @@ AudioConnection          patchCord3(amp, peak);
 // GUItool: end automatically generated code
 
 CRGB leds[STRIP_LENGTH];
-CRGB ledsBass[STRIP_LENGTH];
+CRGB ledsBass[STRIP_BASS_LENGTH];
 
 Bounce debug0 = Bounce(PIN_DEBUG_0, 5); //DEBUG 0: Lighting test button
 Bounce debug1 = Bounce(PIN_DEBUG_1, 5); //DEBUG 1: Swap visualization effect
