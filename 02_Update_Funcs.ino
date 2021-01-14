@@ -101,18 +101,24 @@ void updateLightTest() {
     writeCabLighting();
   }
 
-  if (curMillis - lightTestLastStripUpdateMillis >= 25) { //Time to update the LED strip!
+  //if (curMillis - lightTestLastStripUpdateMillis >= 25) { //Time to update the LED strip!
     lightTestLastStripUpdateMillis = curMillis;
-    lightTestStripPos++;
-    if (lightTestStripPos >= STRIP_LENGTH) { //Wiped a color onto the entire strip, reset to the beginning of the strip using a new color
+    lightTestStripPos += 0.01;
+    if (lightTestStripPos > 1) { //Wiped a color onto the entire strip, reset to the beginning of the strip using a new color
       lightTestStripPos = 0;
       lightTestStripColor++;
-      if (lightTestStripColor >= 8) { lightTestStripColor = 0; }
+      if (lightTestStripColor >= 9) { lightTestStripColor = 0; }
     }
 
-    leds[lightTestStripPos] = getLightTestStripColor();
+    if (lightTestStripColor == 7) {
+      fill_rainbow(leds, lightTestStripPos * STRIP_LENGTH, 0, (float)280 / STRIP_LENGTH);
+      fill_rainbow(ledsBass, lightTestStripPos * STRIP_BASS_LENGTH, 0, (float)280 / STRIP_BASS_LENGTH);
+    } else {
+      fill_solid(leds, lightTestStripPos * STRIP_LENGTH, getLightTestStripColor());
+      fill_solid(ledsBass, lightTestStripPos * STRIP_BASS_LENGTH, getLightTestStripColor());
+    }
     FastLED.show();
-  }
+  //}
 }
 
 

@@ -184,8 +184,8 @@ unsigned long lastVESwap = 0; //Last time the VE/palette was swapped (they're sw
 unsigned long lastPaletteSwap = 0;
 
 
-short bass_scroll_pos = 0; //Pulse/punch effects - The bass kick scroll's position and color
-CHSV bass_scroll_color;
+short bass_scroll_pos[2] = {0}; //Pulse/punch effects - The bass kick scroll's position and color
+CHSV bass_scroll_color[2];
 
 short sectionOffset = 1; //Kick effect - How many indexes should we offset the sections?
 short avgBassSize = 0; //Kick - The average size the bass is
@@ -207,7 +207,7 @@ bool lightTestEnabled = DEBUG_BURNIN; //If we're currently in the lighting test 
 unsigned long lightTestStartMillis = 0; //Also track some timestamps of when some updates last occured
 unsigned long lightTestLastToggleMillis = 0;
 unsigned long lightTestLastStripUpdateMillis = 0;
-short lightTestStripPos = 0; //...and some other variables to track the state of the LED strip test
+float lightTestStripPos = 0; //...and some other variables to track the state of the LED strip test
 short lightTestStripColor = 0;
 
 bool bassKicked = false; //Set true when the bass has kicked, either via reactive bass or SM-controlled bass

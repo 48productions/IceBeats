@@ -138,19 +138,21 @@ void visualizePunch() {
 
   //Did the bass just kick? Start a new bass kick scroll from the end of the current bass section
   if (getBassKicked()) {
-    bass_scroll_pos = sectionSize[0];
+    bass_scroll_pos[isAlternateBassKick] = sectionSize[0];
     //bass_scroll_pos = 1;
   }
 
   float bassKickProgress = getBassKickProgress() * 255; //Store the current bass kick progress too - We'll use it a bunch!
 
   //If we're scrolling a bass kick outwards, update it
-  if (bass_scroll_pos >= 1) {
-    bass_scroll_pos++;
-    if (bass_scroll_pos > STRIP_HALF) { //We've scrolled past the end of the strip, reset to 0 to stop scrolling
-      bass_scroll_pos = 0;
-    } else { //Still scrolling, set an LED
-      leds[STRIP_HALF - bass_scroll_pos] = bass_scroll_color;
+  for (int i = 0; i < 2; i++) {
+    if (bass_scroll_pos[i] >= 1) {
+      bass_scroll_pos[i]++;
+      if (bass_scroll_pos[i] > STRIP_HALF) { //We've scrolled past the end of the strip, reset to 0 to stop scrolling
+        bass_scroll_pos[i] = 0;
+      } else { //Still scrolling, set an LED
+        leds[STRIP_HALF - bass_scroll_pos[i]] = bass_scroll_color[i];
+      }
     }
   }
 
@@ -308,19 +310,21 @@ void visualizeVolume() {
 
   //Did the bass just kick? Start a new bass kick scroll from the end of the current bass section
   if (getBassKicked()) {
-    bass_scroll_pos = sectionSize[0];
+    bass_scroll_pos[isAlternateBassKick] = sectionSize[0];
     //bass_scroll_pos = 1;
   }
 
   float bassKickProgress = getBassKickProgress() * 255; //Store the current bass kick progress too - We'll use it a bunch!
 
   //If we're scrolling a bass kick outwards, update it
-  if (bass_scroll_pos >= 1) {
-    bass_scroll_pos++;
-    if (bass_scroll_pos > STRIP_HALF) { //We've scrolled past the end of the strip, reset to 0 to stop scrolling
-      bass_scroll_pos = 0;
-    } else { //Still scrolling, set an LED
-      leds[STRIP_HALF - bass_scroll_pos] = bass_scroll_color;
+  for (int i = 0; i < 2; i++) {
+    if (bass_scroll_pos[i] >= 1) {
+      bass_scroll_pos[i]++;
+      if (bass_scroll_pos[i] > STRIP_HALF) { //We've scrolled past the end of the strip, reset to 0 to stop scrolling
+        bass_scroll_pos[i] = 0;
+      } else { //Still scrolling, set an LED
+        leds[STRIP_HALF - bass_scroll_pos[i]] = bass_scroll_color[i];
+      }
     }
   }
 

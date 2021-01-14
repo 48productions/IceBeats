@@ -45,9 +45,11 @@ void setNewPalette(int paletteId) {
   }
 
   if (curEffect == VEPulse) { //Visualizing pulse or punch, also set the color to use for bass kicks
-    bass_scroll_color = CHSV(curPalette[0].h + 15, constrain(curPalette[0].s - 40, 0, 255), 130);
+    bass_scroll_color[0] = CHSV(curPalette[0].h + 15, constrain(curPalette[0].s - 40, 0, 255), 130);
+    bass_scroll_color[1] = CHSV(curPalette[0].h + 30, constrain(curPalette[0].s - 85, 0, 255), 130);
   } else if (curEffect == VEPunch) {
-    bass_scroll_color = CHSV(curPalette[0].h + 10, constrain(curPalette[0].s - 40, 0, 255), 100);
+    bass_scroll_color[0] = CHSV(curPalette[0].h + 10, constrain(curPalette[0].s - 40, 0, 255), 100);
+    bass_scroll_color[1] = CHSV(curPalette[0].h + 20, constrain(curPalette[0].s - 85, 0, 255), 100);
   }
 }
 
