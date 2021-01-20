@@ -84,8 +84,8 @@ void loop() {
   }
 
   if (curMillis >= lastUpdateMillis + 16) { //Time for an update, gotta keep a 60fps update rate
-    /*Serial.print(curMillis - lastUpdateMillis); //Debug: Print update rate
-    Serial.print(" ");
+    Serial.println(curMillis - lastUpdateMillis); //Debug: Print update rate
+    /*Serial.print(" ");
     Serial.print(AudioProcessorUsage());
     Serial.print(" ");
     Serial.println(AudioMemoryUsage());*/

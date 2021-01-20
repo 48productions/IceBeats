@@ -34,8 +34,13 @@ void updateSerialLights() {
             /*for (int light = 0; light <= 3; light++) { //Iterate through the 4 marquee lights
               marqueeOn[light] = bitRead(receivedData, light);
             }*/
-            bitWrite(etcLEDs, 7, bitRead(receivedData, 4)); //Bass L
-            bitWrite(etcLEDs, 6, bitRead(receivedData, 5)); //Bass R
+            bool bassl = bitRead(receivedData, 4);
+            bool bassr = bitRead(receivedData, 5);
+            
+            bitWrite(etcLEDs, 7, bassl); //Bass L
+            bitWrite(etcLEDs, 6, bassr); //Bass R
+            bitWrite(etcLEDs, 5, (bassl && !bassr) || (!bassl && bassr)); //XOR the two bass outputs together for a third bass output - SM always turns both bass LEDs on, but we can control them individually in songs. This (in theory) can be wired up to a unique, song-specific output
+            
             //bitWrite(cabLEDs, 7, bitRead(receivedData, 4)); //Bass L
             //bitWrite(cabLEDs, 6, bitRead(receivedData, 5)); //Bass R
             break;

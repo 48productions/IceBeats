@@ -25,7 +25,7 @@
 #define STRIP_LENGTH 90 //Number of LEDs in the strip
 #define STRIP_DATA 5 //Pin connected to the LED strip
 
-#define STRIP_BASS_LENGTH 100 //Number of LEDs in our bass neon strip
+#define STRIP_BASS_LENGTH 200 //Number of LEDs in our bass neon strip
 #define STRIP_BASS_DATA 9 //Pin connected to the bass neon strip
 
 #define DEBUG_FFT_BINS true //Set true to test FFT section responsiveness - bin sections are mapped to the brightness of specific pixels
