@@ -310,19 +310,34 @@ void updateIdle() {
     reactiveBass = false;
     if (smBassState) { bassKicked = true; } //Light JUST turned on? Grats this is also a bass kick now
     
-  } else if (!reactiveBass && curMillis - lastSMBassChange >= 10000) { //Switch to reactive bass after 10 seconds of no bass LED strip changes
+  } else if (!reactiveBass && curMillis - lastSMBassChange >= 10000 && !smBassState) { //Switch to reactive bass after 10 seconds of no bass LED strip changes if the bass LED is OFF
     reactiveBass = true;
   }
   lastSMBassState = smBassState;
-  
-  short bassLEDSize = getBassSize();
-  //Serial.println(bassLEDSize);
-  fadeToBlackBy(ledsBass, STRIP_BASS_LENGTH, 150); //Fade out the last update from the strip a bit
-  
-  short hueOffset = 0;
-  for (int i = 0; i < bassLEDSize; i++) {
-    ledsBass[STRIP_BASS_HALF - i - 1] = CHSV(curPalette[0].h - hueOffset, curPalette[0].s, curPalette[0].v);
-    ledsBass[STRIP_BASS_HALF + i] = CHSV(curPalette[0].h - hueOffset, curPalette[0].s, curPalette[0].v);
-    hueOffset += 2; //Offset the hue for a slight gradient across the bass LED strip
+
+  if (curEffect % 2 == 0) { //Choose between two bass strip visualizations based on the current (main) VE
+    //Unnamed Bass VE 0: Bass kicks scroll up/down the strip
+    short bassLEDSize = getBassSize() * STRIP_BASS_HALF;
+    Serial.println(bassLEDSize);
+    fadeToBlackBy(ledsBass, STRIP_BASS_LENGTH, 150); //Fade out the last update from the strip a bit
+    
+    short hueOffset = 0;
+    for (int i = 0; i < bassLEDSize; i++) {
+      ledsBass[STRIP_BASS_HALF - i - 1] = CHSV(curPalette[0].h - hueOffset, curPalette[0].s, curPalette[0].v);
+      ledsBass[STRIP_BASS_HALF + i] = CHSV(curPalette[0].h - hueOffset, curPalette[0].s, curPalette[0].v);
+      hueOffset += BASS_DELTA; //Offset the hue for a slight gradient across the bass LED strip
+    }
+
+    
+  } else { //Unnammed Bass VE 1: Bass kicks fade in/out on the strip
+    float bassLEDSize = getBassSize();
+    Serial.println(bassLEDSize);
+    short hueOffset = 0;
+    for (int i = 0; i < STRIP_BASS_HALF; i++) {
+      ledsBass[STRIP_BASS_HALF - i - 1] = CHSV(curPalette[0].h - hueOffset, curPalette[0].s, curPalette[0].v * bassLEDSize);
+      ledsBass[STRIP_BASS_HALF + i] = CHSV(curPalette[0].h - hueOffset, curPalette[0].s, curPalette[0].v * bassLEDSize);
+      hueOffset += BASS_DELTA; //Offset the hue for a slight gradient across the bass LED strip
+    }
   }
+  
  }

@@ -56,66 +56,66 @@ void visualizeFFTDebug() {
 * Bass kicks produce faint dots that scroll to the edge of the strip
 */
 void visualizePulse() {
-  visualizePunch(); //Not ready for release (will make this one not suck eventually I promise)
-  /*short sectionSize[] = {0, 0, 0, 0, 0, 0}; //Size of each visualization section in pixels
-  sectionSize[0] = getFFTSection(0) * PULSE_MAX_SIZE_BASS;
-  sectionSize[1] = getFFTSection(3) * PULSE_MAX_SIZE_HIGH;
-  for (int i = 2; i <= 5; i++) {
-    sectionSize[i] = marqueeBrightness[i - 2] * PULSE_MAX_SIZE_LAMP;
-  }
+  visualizePunch();
+  /*short sectionSize[] = {0, 0, 0, 0}; //Size of each visualization section in pixels
+  //sectionSize[0] = getFFTSection(0) * PUNCH_MAX_SIZE_BASS;
+  float sectionBass = min(getFFTSection(0) * 1.3, 1);
+  sectionSize[1] = getFFTSection(1) * PUNCH_MAX_SIZE_LOW;
+  sectionSize[2] = getFFTSection(2) * PUNCH_MAX_SIZE_MID / 2;
+  sectionSize[3] = getFFTSection(3) * PUNCH_MAX_SIZE_HIGH;
 
-  fadeToBlackBy(leds, STRIP_LENGTH, 40); //Fade out the last update from the strip a bit
+  fadeToBlackBy(leds, STRIP_LENGTH, 125); //Fade out the last update from the strip a bit
 
   //Did the bass just kick? Start a new bass kick scroll from the end of the current bass section
   if (getBassKicked()) {
-    bass_scroll_pos = sectionSize[0];
+    bass_scroll_pos[isAlternateBassKick] = sectionSize[0];
+    //bass_scroll_pos = 1;
   }
 
   float bassKickProgress = getBassKickProgress() * 255; //Store the current bass kick progress too - We'll use it a bunch!
 
-  //If we're scrolling a bass kick outwards, update it
-  if (bass_scroll_pos >= 1) {
-    bass_scroll_pos++;
-    if (bass_scroll_pos > STRIP_HALF) { //We've scrolled past the end of the strip, reset to 0 to stop scrolling
-      bass_scroll_pos = 0;
-    } else { //Still scrolling, set an LED
-      leds[STRIP_HALF - bass_scroll_pos] = bass_scroll_color;
-    }
-  }
-  
+
+  Serial.print(sectionBass);
+  Serial.print(" ");
+  Serial.println((1 - sectionBass) * 255);
+
+  //Fill the background with a gradient based on the bass bin's value
+  CHSV bg1 = curPalette[0];
+  bg1.v = sectionBass * 255;
+  //CHSV bg2 = blend(curPaletteDim[0], CHSV(0, 0, 0), (1 - sectionBass) * 255);
+  CHSV bg2 = curPaletteDim[0];
+  bg2.v = sectionBass * 127;
+  fill_gradient(leds, STRIP_HALF, bg1, STRIP_HALF - (STRIP_HALF * sectionBass), bg2);
+
+  updateBassScroll();
 
   //For each section to draw, iterate through the number of LEDs to draw. Then, find and add the offset to each LED to draw so it draws in the correct place on the strip
-  //High offset: None - Start from 0 and increment upwards
-  for (int i = 0; i < sectionSize[1]; i++) { //Set HIGH
-    //leds[i] = curPalette[3]; //Static colors are boring, let's make them pulse to the beat!
-    leds[i] = blend(curPaletteDim[3], curPalette[3], bassKickProgress); //If the bass is kicking, blend in a bit of a brighter version of the current palette
+  short sectionOffset = STRIP_HALF - sectionSize[2]; //Mid: Center of strip
+  for (int i = 0; i < sectionSize[2]; i++) { //Set MID
+    //leds[i + sectionOffset] = curPalette[2];
+    leds[i + sectionOffset] = blend(curPaletteDim[2], curPalette[2], bassKickProgress); //If the bass is kicking, blend in a bit of a brighter version of the current palette
   }
 
-  short sectionOffset = STRIP_HALF - sectionSize[0]; //Bass offset: 1/2 point on the strip minus this section's size
+  sectionOffset = STRIP_FOURTH - sectionSize[1] / 2; //Low: Offset 1/4 of strip minus half this section's size
+  for (int i = 0; i < sectionSize[1]; i++) { //Set LOW
+    //leds[i + sectionOffset] = curPalette[1];
+    leds[i + sectionOffset] = blend(curPaletteDim[1], curPalette[1], bassKickProgress);
+  }
+
+  //High: No offset - Start from 0 and increment upwards
+  for (int i = 0; i < sectionSize[3]; i++) { //Set HIGH
+    //leds[i] = curPalette[3];
+    leds[i] = blend(curPaletteDim[3], curPalette[3], bassKickProgress);
+  }
+  
+  /*sectionOffset = STRIP_HALF - sectionSize[0]; //Bass: Offset 1/2 strip minus this section's size
   for (int i = 0; i < sectionSize[0]; i++) { //Set BASS
     //leds[i + sectionOffset] = curPalette[0];
     leds[i + sectionOffset] = blend(curPaletteDim[0], curPalette[0], bassKickProgress);
-  } 
+  } */
 
-  //Next, mirror the first half of the strip to the second half
-  mirrorStrip();
-
-  //Finally, do the marquee light sections (these shouldn't be mirrored)
-  //First to upper left/right (outer left/right)
-  for (int light = 2; light <= 3; light++) {
-    sectionOffset = STRIP_6TH * (light == 2 ? 1: 5) - sectionSize[light] / 2; //Offsets - Light bar things at 1/6, 2/6, 4/6, and 5/6 of STRIP_LENGTH
-    for (int i = 0; i <= sectionSize[light]; i++) {
-      leds[i + sectionOffset] = blend(curPaletteDim[2], curPalette[2], bassKickProgress);
-    }
-  }
-
-  //Then lower left/right (inner left/right)
-  for (int light = 4; light <= 5; light++) {
-    sectionOffset = STRIP_6TH * (light == 4 ? 2 : 4) - sectionSize[light] / 2;
-    for (int i = 0; i <= sectionSize[light]; i++) {
-      leds[i + sectionOffset] = blend(curPaletteDim[1], curPalette[1], bassKickProgress);
-    }
-  }*/
+  //Finally, mirror the first half of the strip to the second half
+  //mirrorStrip();
 }
 
 
@@ -134,7 +134,7 @@ void visualizePunch() {
   sectionSize[2] = getFFTSection(2) * PUNCH_MAX_SIZE_MID;
   sectionSize[3] = getFFTSection(3) * PUNCH_MAX_SIZE_HIGH;
 
-  fadeToBlackBy(leds, STRIP_LENGTH, 100); //Fade out the last update from the strip a bit
+  fadeToBlackBy(leds, STRIP_LENGTH, 130); //Fade out the last update from the strip a bit
 
   //Did the bass just kick? Start a new bass kick scroll from the end of the current bass section
   if (getBassKicked()) {
@@ -144,17 +144,7 @@ void visualizePunch() {
 
   float bassKickProgress = getBassKickProgress() * 255; //Store the current bass kick progress too - We'll use it a bunch!
 
-  //If we're scrolling a bass kick outwards, update it
-  for (int i = 0; i < 2; i++) {
-    if (bass_scroll_pos[i] >= 1) {
-      bass_scroll_pos[i]++;
-      if (bass_scroll_pos[i] > STRIP_HALF) { //We've scrolled past the end of the strip, reset to 0 to stop scrolling
-        bass_scroll_pos[i] = 0;
-      } else { //Still scrolling, set an LED
-        leds[STRIP_HALF - bass_scroll_pos[i]] = bass_scroll_color[i];
-      }
-    }
-  }
+  updateBassScroll();
 
   /*Serial.print(sectionSize[0]);
   Serial.print(" ");
@@ -306,7 +296,7 @@ void visualizeVolume() {
   sectionSize[2] = getFFTSection(2) * VOLUME_MAX_SIZE_MID;
   sectionSize[3] = getFFTSection(3) * VOLUME_MAX_SIZE_HIGH;
 
-  fadeToBlackBy(leds, STRIP_LENGTH, 95); //Fade out the last update from the strip a bit
+  fadeToBlackBy(leds, STRIP_LENGTH, 110); //Fade out the last update from the strip a bit
 
   //Did the bass just kick? Start a new bass kick scroll from the end of the current bass section
   if (getBassKicked()) {
@@ -316,17 +306,7 @@ void visualizeVolume() {
 
   float bassKickProgress = getBassKickProgress() * 255; //Store the current bass kick progress too - We'll use it a bunch!
 
-  //If we're scrolling a bass kick outwards, update it
-  for (int i = 0; i < 2; i++) {
-    if (bass_scroll_pos[i] >= 1) {
-      bass_scroll_pos[i]++;
-      if (bass_scroll_pos[i] > STRIP_HALF) { //We've scrolled past the end of the strip, reset to 0 to stop scrolling
-        bass_scroll_pos[i] = 0;
-      } else { //Still scrolling, set an LED
-        leds[STRIP_HALF - bass_scroll_pos[i]] = bass_scroll_color[i];
-      }
-    }
-  }
+  updateBassScroll();
 
   /*Serial.print(sectionSize[0]);
   Serial.print(" ");

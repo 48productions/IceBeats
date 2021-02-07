@@ -12,7 +12,7 @@
 /**
  * Idle effect: Rainbow Wave
  * 
- * Rainbowy waves of goodness wipe out and slowly recede in, like the ocean. Subsequent waves wipe farther out
+ * Rainbowy waves of goodness wipe out and slowly recede in, like the ocean.
  */
 void idleRainbowWave() {
   fadeToBlackBy(leds, STRIP_LENGTH, 90); //Fade out the last update from the strip a bit

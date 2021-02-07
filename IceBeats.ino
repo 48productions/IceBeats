@@ -25,7 +25,7 @@
 #define STRIP_LENGTH 90 //Number of LEDs in the strip
 #define STRIP_DATA 5 //Pin connected to the LED strip
 
-#define STRIP_BASS_LENGTH 200 //Number of LEDs in our bass neon strip
+#define STRIP_BASS_LENGTH 60 //Number of LEDs in our bass neon strip
 #define STRIP_BASS_DATA 9 //Pin connected to the bass neon strip
 
 #define DEBUG_FFT_BINS true //Set true to test FFT section responsiveness - bin sections are mapped to the brightness of specific pixels
@@ -72,9 +72,11 @@ const int STRIP_16TH = STRIP_LENGTH / 16;
 const int STRIP_32ND = STRIP_LENGTH / 32;
 
 const int STRIP_BASS_HALF = STRIP_BASS_LENGTH / 2;
+const short BASS_DELTA = 75 / STRIP_BASS_HALF;
 
 const int PULSE_MAX_SIZE_BASS = STRIP_LENGTH / 6; //Maximum section sizes for VE Pulse (based on strip length)
-const int PULSE_MAX_SIZE_LAMP = STRIP_LENGTH / 8;
+const int PULSE_MAX_SIZE_LOW = STRIP_LENGTH / 8;
+const int PULSE_MAX_SIZE_MID = STRIP_LENGTH / 8;
 const int PULSE_MAX_SIZE_HIGH = STRIP_LENGTH / 8;
 
 const int PUNCH_MAX_SIZE_BASS = STRIP_LENGTH / 6; //Maximum section sizes for VE Punch

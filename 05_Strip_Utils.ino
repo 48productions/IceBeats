@@ -24,6 +24,26 @@ void mirrorStrip() {
 
 
 /**
+ * Sets LEDs on the strip for bass kick scrolling, used by a few effects
+ */
+void updateBassScroll() {
+  //If we're scrolling a bass kick outwards, update it
+  for (int i = 0; i < 2; i++) {
+    if (bass_scroll_pos[i] >= 1) {
+      bass_scroll_pos[i]++;
+      if (bass_scroll_pos[i] > STRIP_HALF) { //We've scrolled past the end of the strip, reset to 0 to stop scrolling
+        bass_scroll_pos[i] = 0;
+      } else { //Still scrolling, set an LED
+        leds[STRIP_HALF - bass_scroll_pos[i]] = bass_scroll_color[i];
+      }
+    }
+  }
+}
+
+
+
+
+/**
  * Sets a new color palette to use
  */
 void setNewPalette(int paletteId) {
@@ -46,10 +66,10 @@ void setNewPalette(int paletteId) {
 
   if (curEffect == VEPulse) { //Visualizing pulse or punch, also set the color to use for bass kicks
     bass_scroll_color[0] = CHSV(curPalette[0].h + 15, constrain(curPalette[0].s - 40, 0, 255), 130);
-    bass_scroll_color[1] = CHSV(curPalette[0].h + 30, constrain(curPalette[0].s - 85, 0, 255), 130);
+    bass_scroll_color[1] = CHSV(curPalette[2].h + 15, constrain(curPalette[0].s - 40, 0, 255), 130);
   } else if (curEffect == VEPunch) {
     bass_scroll_color[0] = CHSV(curPalette[0].h + 10, constrain(curPalette[0].s - 40, 0, 255), 100);
-    bass_scroll_color[1] = CHSV(curPalette[0].h + 20, constrain(curPalette[0].s - 85, 0, 255), 100);
+    bass_scroll_color[1] = CHSV(curPalette[2].h + 10, constrain(curPalette[0].s - 40, 0, 255), 100);
   }
 }
 
@@ -104,10 +124,10 @@ CRGB getLightTestStripColor() {
 /**
  * Returns the size of the bass 
  */
-short getBassSize() {
+float getBassSize() {
   if (reactiveBass) { //Audio-reactive bass: Use the brightness of the bass LED to control the bass strip's brightness
     //return getFFTSection(0) * STRIP_BASS_HALF;
-    return (float)(bassBrightness) / 255 * STRIP_BASS_HALF;
+    return (float)(bassBrightness) / 255;
     
   } else { //SM-controlled bass: Fade on/off the bass strip based off Stepmania's bass light output
     
@@ -115,7 +135,7 @@ short getBassSize() {
     } else { bassStripBrightness = max(bassStripBrightness * 0.75, 0.01); //Bass off? Dimmerify
     }
     
-    return bassStripBrightness * STRIP_BASS_HALF;
+    return bassStripBrightness;
   }
   
 }
