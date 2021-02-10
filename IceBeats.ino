@@ -36,9 +36,9 @@
 #define PIN_BASS_SEL_1 7 //My setup uses an LED light string where alternating LEDs are driven by reverse polarities (drive at +29V for even lights, -29V for odd lights).
 #define PIN_BASS_SEL_2 8 //These are driven using an H-bridge, these two pins control the direction the lights are driven in (and don't need to be PWMable)
 
-#define PIN_DEBUG_0 17 //Pins for debug buttons. Currently toggles a lighting test mode, cycles palettes, and cycles visualizations
-#define PIN_DEBUG_1 14
-#define PIN_DEBUG_2 15
+#define PIN_DEBUG_0 17 //Lighting test button
+#define PIN_DEBUG_1 14 //Swap visualization button
+#define PIN_DEBUG_2 15 //Swap palette button
 
 #define PIN_LIGHTS_LAT 3 //Pins for the latch, clock, and data lines for the lighting shift registers
 #define PIN_LIGHTS_CLK 2
@@ -162,6 +162,7 @@ const int MAX_PALETTE = sizeof(palettes) / sizeof(palettes[0]) - 1; //Maximum pa
 VisualizationEffect curEffect = VEPunch; //Current visualization in use
 
 int curPaletteIndex = 0; //Current palette index in use
+CHSV lastPalette[4] = palettes[0]; //The previous palette colors used
 CHSV curPalette[4] = palettes[0]; //Current palette colors in use
 CHSV curPaletteDim[4] = palettes[0]; //A slightly dimmed version of the current palette, used for "pulse to the beat" effects
 

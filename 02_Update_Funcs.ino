@@ -214,13 +214,13 @@ void updateVisualization() {
       
   if (curMillis - lastVESwap >= 5000) { //Only detect VE/palette swaps if we've swapped to a new VE for a bit
     if (notBassDelta >= 1.4) { //If we've gotten a drastic change in music (and haven't done a VE swap in a while), swap a new VE
-      setNewPalette(random(0, MAX_PALETTE + 1));
+      setNewPalette();
       setNewVE(random(1, MAX_VE + 1));
       lastVESwap = curMillis;
     } else {
      if (USE_PRESET_PALETTES) { //Preset palettes - Set a new palette whenever we get a big (but smaller than drastic) notBass change
         if (notBassDelta >= 1.27 && curMillis - lastPaletteSwap >= 2000) {
-          setNewPalette(random(0, MAX_PALETTE + 1));
+          setNewPalette();
           lastPaletteSwap = curMillis;
         }
         
@@ -318,7 +318,7 @@ void updateIdle() {
   if (curEffect % 2 == 0) { //Choose between two bass strip visualizations based on the current (main) VE
     //Unnamed Bass VE 0: Bass kicks scroll up/down the strip
     short bassLEDSize = getBassSize() * STRIP_BASS_HALF;
-    Serial.println(bassLEDSize);
+    //Serial.println(bassLEDSize);
     fadeToBlackBy(ledsBass, STRIP_BASS_LENGTH, 150); //Fade out the last update from the strip a bit
     
     short hueOffset = 0;
@@ -331,7 +331,7 @@ void updateIdle() {
     
   } else { //Unnammed Bass VE 1: Bass kicks fade in/out on the strip
     float bassLEDSize = getBassSize();
-    Serial.println(bassLEDSize);
+    //Serial.println(bassLEDSize);
     short hueOffset = 0;
     for (int i = 0; i < STRIP_BASS_HALF; i++) {
       ledsBass[STRIP_BASS_HALF - i - 1] = CHSV(curPalette[0].h - hueOffset, curPalette[0].s, curPalette[0].v * bassLEDSize);

@@ -62,6 +62,7 @@ void loop() {
 
   if (debug2.fell()) { //Debug 2 pressed, swap to a new color palette
     setNewPalette(curPaletteIndex + 1);
+    lastPaletteSwap = curMillis;
   }
 
   if (debug1.fell()) { //Debug 1 pressed, swap to a new visualization effect
@@ -90,6 +91,18 @@ void loop() {
     Serial.print(" ");
     Serial.println(AudioMemoryUsage());*/
     lastUpdateMillis = curMillis;
+
+
+#ifdef USE_PRESET_PALETTES //If using preset color palettes, check if we recently swapped between palettes
+    if (curMillis <= lastPaletteSwap + 150) { //If so, we should be fading between the old and the new colors
+      for (int i = 0; i <= 3; i++) {
+        float transProgress = (float)(curMillis - lastPaletteSwap) / 150;
+        Serial.println(transProgress);
+        curPalette[i] = blend(lastPalette[i], palettes[curPaletteIndex][i], transProgress * 255); //Blend between the last and current palettes over the course of our fade duration (100ms)
+      }
+      updateAltPalettes();
+    }
+#endif
 
     /*for (int i = 0; i <= 3; i++) { //Handle smooth fading for the marquee lights
       if (marqueeOn[i] && marqueeBrightness[i] < 1) { //If we still need to fade on this light...

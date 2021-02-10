@@ -44,14 +44,27 @@ void updateBassScroll() {
 
 
 /**
+ * Overloaded setNewPalette() - give no arguments for a random palette
+ */
+void setNewPalette() {
+  int newPalette = random(0, MAX_PALETTE + 1);
+  if (newPalette == curPalette) { newPalette = curPalette + 1; } //Our new palette is the same as the old one. That's boring as heck, just add one to the current palette to get a new one kek
+  setNewPalette(newPalette);
+}
+
+
+
+ 
+/**
  * Sets a new color palette to use
  */
 void setNewPalette(int paletteId) {
   if (USE_PRESET_PALETTES) { //Preset palettes - Grab a new palette from the table-o-palettes and apply it
+    memcpy(lastPalette, palettes[curPaletteIndex], sizeof(curPalette)); //Copy the contents of the current palette to lastPalette[]
     curPaletteIndex = wrapValue(paletteId, 0, MAX_PALETTE); //Wrap around palette values in case we lazily just give this function "curPalette + 1"
     //if (curPaletteIndex < 0) { curPaletteIndex = MAX_PALETTE; }
     //if (curPaletteIndex > MAX_PALETTE) { curPaletteIndex = 0; }
-    memcpy(curPalette, palettes[curPaletteIndex], sizeof(curPalette)); //Copy the contents of the new palette to use to curPalette[]*/
+    //memcpy(curPalette, palettes[curPaletteIndex], sizeof(curPalette)); //Copy the contents of the new palette to use to curPalette[] (no longer used, we're gonna slowly fade between palettes now)
     
   } else { //Music-based - Grab the "common frequency", make some colors based off it
     curPalette[0] = CHSV((1-commonFreqAvg.getAverage()) * 180, 255, 255);
@@ -59,7 +72,17 @@ void setNewPalette(int paletteId) {
     curPalette[2] = CHSV(max(curPalette[0].h - 33, 0), 180, 255);
     curPalette[3] = CHSV(max(curPalette[0].h - 40, 0), 55, 255);
   }
-  
+
+  updateAltPalettes();
+}
+
+
+
+
+/**
+ * Update any non-main palettes based on the current palette's colors (i.e. the dim palette, or bass scroll colors)
+ */
+void updateAltPalettes() {
   for (short i = 0; i <= 3; i++) { //Also set the current dim palette's values to be a dim version of the current palette
     curPaletteDim[i] = CHSV(curPalette[i].h, curPalette[i].s * 0.87, curPalette[i].v * 0.6);
   }
@@ -72,6 +95,8 @@ void setNewPalette(int paletteId) {
     bass_scroll_color[1] = CHSV(curPalette[2].h + 10, constrain(curPalette[0].s - 40, 0, 255), 100);
   }
 }
+
+
 
 
 /**
