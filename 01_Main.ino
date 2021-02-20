@@ -95,13 +95,25 @@ void loop() {
 
 #ifdef USE_PRESET_PALETTES //If using preset color palettes, check if we recently swapped between palettes
     if (curMillis <= lastPaletteSwap + 150) { //If so, we should be fading between the old and the new colors
+      short transProgress = ((float)(curMillis - lastPaletteSwap) / 150) * 255;
+      Serial.println(transProgress);
       for (int i = 0; i <= 3; i++) {
-        float transProgress = (float)(curMillis - lastPaletteSwap) / 150;
-        Serial.println(transProgress);
-        curPalette[i] = blend(lastPalette[i], palettes[curPaletteIndex][i], transProgress * 255); //Blend between the last and current palettes over the course of our fade duration (100ms)
+        curPalette[i] = blend(lastPalette[i], palettes[curPaletteIndex][i], transProgress); //Blend between the last and current palettes over the course of our fade duration (100ms)
       }
-      updateAltPalettes();
+      
+    } else { //If we're not fading between the old/new palettes, waver the current one's hue
+      int targetAnimLength = bassKickLengthAverage.getAverage() * 2; //First find out how long this waver should last (2x length between bass kicks)
+      float waverPos = ((float)(curMillis - lastHueWaverMillis) / targetAnimLength) * PI; //Next, our position into the waver sine wave...
+      if (waverPos >= 2 * PI) { lastHueWaverMillis = curMillis; } //(Also set the last time we completed a waver if we've just completed a waver)
+      short waverVal = sin(waverPos) * 2; //...and finally use sine to calculate how much we should offset the hue
+      Serial.print(waverPos);
+      Serial.print(" ");
+      Serial.println(waverVal);
+      for (int i = 0; i <= 3; i++) {
+        curPalette[i].h += waverVal; //Now modify the current palette's hue based on our calculated value
+      }
     }
+    updateAltPalettes();
 #endif
 
     /*for (int i = 0; i <= 3; i++) { //Handle smooth fading for the marquee lights

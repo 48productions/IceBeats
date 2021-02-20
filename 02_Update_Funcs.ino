@@ -143,6 +143,8 @@ void updatePeak() {
     
   } else if (idling == false && prevIdling == true) { //We've stopped idling!
     idlePos = 0; //Stop running the idle animation, there's SOUDN (prevents running the idle anim the instant we get no sound again instead of waiting 10 seconds)
+    lastBassKickMillis = curMillis; //Also reset the bass kick length tracking (otherwise the last bass kick will've happened a *real* long time ago
+    bassKickLengthAverage.clear();
   }
   
   if (idling) {

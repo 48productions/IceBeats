@@ -165,6 +165,7 @@ int curPaletteIndex = 0; //Current palette index in use
 CHSV lastPalette[4] = palettes[0]; //The previous palette colors used
 CHSV curPalette[4] = palettes[0]; //Current palette colors in use
 CHSV curPaletteDim[4] = palettes[0]; //A slightly dimmed version of the current palette, used for "pulse to the beat" effects
+unsigned long lastHueWaverMillis = 0; //The hue will slightly waver to the beat in preset palette mode to keep things spicy - this is when our last waver started
 
 unsigned long curMillis = 0; //Current time
 unsigned long lastUpdateMillis = 0; //Last time an update happened
