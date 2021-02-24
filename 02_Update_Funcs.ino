@@ -323,12 +323,21 @@ void updateIdle() {
     //Serial.println(bassLEDSize);
     fadeToBlackBy(ledsBass, STRIP_BASS_LENGTH, 150); //Fade out the last update from the strip a bit
     
-    short hueOffset = 0;
+    float hueOffset = 0;
+#if INVERT_BASS_STRIP_POS //Bass strip inverted: Start effects in center (for strip wrapped around sub with strip ends at top of sub)
     for (int i = 0; i < bassLEDSize; i++) {
-      ledsBass[STRIP_BASS_HALF - i - 1] = CHSV(curPalette[0].h - hueOffset, curPalette[0].s, curPalette[0].v);
-      ledsBass[STRIP_BASS_HALF + i] = CHSV(curPalette[0].h - hueOffset, curPalette[0].s, curPalette[0].v);
+      ledsBass[STRIP_BASS_HALF - i - 1] = CHSV((int)(curPalette[0].h - hueOffset), curPalette[0].s, curPalette[0].v);
+      ledsBass[STRIP_BASS_HALF + i] = CHSV((int)(curPalette[0].h - hueOffset), curPalette[0].s, curPalette[0].v);
       hueOffset += BASS_DELTA; //Offset the hue for a slight gradient across the bass LED strip
     }
+    
+#else //Bass strip normal: Start effects at the edges (for strip wrapped around sub with ends at bottom of sub)
+    for (int i = 1; i <= bassLEDSize; i++) {
+      ledsBass[i - 1] = CHSV((int)(curPalette[0].h - hueOffset), curPalette[0].s, curPalette[0].v);
+      ledsBass[STRIP_BASS_LENGTH - i] = CHSV((int)(curPalette[0].h - hueOffset), curPalette[0].s, curPalette[0].v);
+      hueOffset += BASS_DELTA; //Offset the hue for a slight gradient across the bass LED strip
+    }
+#endif
 
     
   } else { //Unnammed Bass VE 1: Bass kicks fade in/out on the strip

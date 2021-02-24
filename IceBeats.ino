@@ -22,11 +22,16 @@
 /*****************
  * CONFIGURATION *
  ****************/
-#define STRIP_LENGTH 90 //Number of LEDs in the strip
+#define STRIP_LENGTH 90 //Number of LEDs in the strip (warning: Adding many LEDs slows updates)
 #define STRIP_DATA 5 //Pin connected to the LED strip
 
-#define STRIP_BASS_LENGTH 60 //Number of LEDs in our bass neon strip
+#define STRIP_BASS_LENGTH 144 //Number of LEDs in our bass neon strip
 #define STRIP_BASS_DATA 9 //Pin connected to the bass neon strip
+
+//Set this next option to true to make bass strip effects start in the center and wipe outwards (instead of starting at the edges and wiping inwards)
+//IceBeats was designed for the bass strip to be wrapped around a subwoofer with effects starting at the bottom of the sub and climbing towards the top
+//This value compensates for whether the ends of this strip are mounted at the top (true) or bottom (false) of the sub
+#define INVERT_BASS_STRIP_POS false
 
 #define DEBUG_FFT_BINS true //Set true to test FFT section responsiveness - bin sections are mapped to the brightness of specific pixels
 
@@ -45,6 +50,7 @@
 #define PIN_LIGHTS_DAT 4
 
 #define USE_PRESET_PALETTES true //Set whether to use pre-set or base palettes off of the music. Pre-set is more visually pleasing, music-based may reflect changes in music better
+#define HUE_WAVER_STRENGTH 1.5 //When using preset palettes, the hue of the current palette will "waver" slightly to the beat of the music. This controls how strong this waver is (0 - none, 2 - strong)
 
 //const int pinLightsMarquee[4] = {20, 21, 22, 23}; //PWM-able pins for the 4 marquee lights, disabled at this time
 
@@ -71,8 +77,8 @@ const int STRIP_8TH = STRIP_LENGTH / 8;
 const int STRIP_16TH = STRIP_LENGTH / 16;
 const int STRIP_32ND = STRIP_LENGTH / 32;
 
-const int STRIP_BASS_HALF = STRIP_BASS_LENGTH / 2;
-const short BASS_DELTA = 75 / STRIP_BASS_HALF;
+const int STRIP_BASS_HALF = STRIP_BASS_LENGTH / 2; //Half length of the bass strip
+const float BASS_DELTA = 65.0 / STRIP_BASS_HALF; //Controls strip-wide hue shifts for bass visualizations (higher number = more rainbow for bass kicks)
 
 const int PULSE_MAX_SIZE_BASS = STRIP_LENGTH / 6; //Maximum section sizes for VE Pulse (based on strip length)
 const int PULSE_MAX_SIZE_LOW = STRIP_LENGTH / 8;
