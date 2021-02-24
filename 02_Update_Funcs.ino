@@ -343,10 +343,10 @@ void updateIdle() {
   } else { //Unnammed Bass VE 1: Bass kicks fade in/out on the strip
     float bassLEDSize = getBassSize();
     //Serial.println(bassLEDSize);
-    short hueOffset = 0;
+    float hueOffset = 0;
     for (int i = 0; i < STRIP_BASS_HALF; i++) {
-      ledsBass[STRIP_BASS_HALF - i - 1] = CHSV(curPalette[0].h - hueOffset, curPalette[0].s, curPalette[0].v * bassLEDSize);
-      ledsBass[STRIP_BASS_HALF + i] = CHSV(curPalette[0].h - hueOffset, curPalette[0].s, curPalette[0].v * bassLEDSize);
+      ledsBass[STRIP_BASS_HALF - i - 1] = CHSV((int)(curPalette[0].h - hueOffset), curPalette[0].s, curPalette[0].v * bassLEDSize);
+      ledsBass[STRIP_BASS_HALF + i] = CHSV((int)(curPalette[0].h - hueOffset), curPalette[0].s, curPalette[0].v * bassLEDSize);
       hueOffset += BASS_DELTA; //Offset the hue for a slight gradient across the bass LED strip
     }
   }
