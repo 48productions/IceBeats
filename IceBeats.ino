@@ -23,10 +23,10 @@
  * CONFIGURATION *
  ****************/
 #define STRIP_LENGTH 90 //Number of LEDs in the strip (warning: Adding many LEDs slows updates)
-#define STRIP_DATA 5 //Pin connected to the LED strip
+#define STRIP_DATA 9 //Pin connected to the LED strip
 
-#define STRIP_BASS_LENGTH 144 //Number of LEDs in our bass neon strip
-#define STRIP_BASS_DATA 9 //Pin connected to the bass neon strip
+#define STRIP_BASS_LENGTH 128 //Number of LEDs in our bass neon strip
+#define STRIP_BASS_DATA 5 //Pin connected to the bass neon strip
 
 //Set this next option to true to make bass strip effects start in the center and wipe outwards (instead of starting at the edges and wiping inwards)
 //IceBeats was designed for the bass strip to be wrapped around a subwoofer with effects starting at the bottom of the sub and climbing towards the top
