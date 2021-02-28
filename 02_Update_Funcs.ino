@@ -34,15 +34,13 @@ void updateSerialLights() {
             /*for (int light = 0; light <= 3; light++) { //Iterate through the 4 marquee lights
               marqueeOn[light] = bitRead(receivedData, light);
             }*/
-            bool bassl = bitRead(receivedData, 4);
-            bool bassr = bitRead(receivedData, 5);
             
-            bitWrite(etcLEDs, 7, bassl); //Bass L
-            bitWrite(etcLEDs, 6, bassr); //Bass R
-            bitWrite(etcLEDs, 5, (bassl && !bassr) || (!bassl && bassr)); //XOR the two bass outputs together for a third bass output - SM always turns both bass LEDs on, but we can control them individually in songs. This (in theory) can be wired up to a unique, song-specific output
+            bitWrite(etcLEDs, 7, bitRead(receivedData, 4)); //Bass L
+            bitWrite(etcLEDs, 6, bitRead(receivedData, 5)); //Bass R
             
-            //bitWrite(cabLEDs, 7, bitRead(receivedData, 4)); //Bass L
-            //bitWrite(cabLEDs, 6, bitRead(receivedData, 5)); //Bass R
+             //XOR the two bass outputs together for a third bass output - SM always turns both bass LEDs on, but we can control them individually in songs. This (in theory) can be wired up to a unique, song-specific output
+             //(Note: bitreading into variables to then use here breaks the rest of the serial lighting code for some dumb reason)
+            bitWrite(etcLEDs, 5, (bitRead(receivedData, 4) && !bitRead(receivedData, 5)) || (!bitRead(receivedData, 4) && bitRead(receivedData, 5)));
             break;
           case 1: //Second byte of lighting data (P1 menu button lights)
             bitWrite(cabLEDs, 3, bitRead(receivedData, 0)); //P1 menu left
