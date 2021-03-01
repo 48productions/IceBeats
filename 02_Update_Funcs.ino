@@ -149,7 +149,10 @@ void updatePeak() {
     if (curMillis >= nextIdleStartMillis) { //Time to start an idle animation!
       nextIdleStartMillis = curMillis + 60000; //Next idle animation should start in 60 seconds
       idlePos = 1; //Kickstart the animation!
-      idleCurHue = 0;
+      idleCurHue = random(0, 256);
+      curIdle = random(0, MAX_ID + 1);
+      setNewPalette(); //Also force a palette swap for idle animations that use a palette
+      lastPaletteSwap = curMillis;
     }
   }
   prevIdling = idling;
@@ -215,6 +218,7 @@ void updateVisualization() {
   if (curMillis - lastVESwap >= 5000) { //Only detect VE/palette swaps if we've swapped to a new VE for a bit
     if (notBassDelta >= 1.4) { //If we've gotten a drastic change in music (and haven't done a VE swap in a while), swap a new VE
       setNewPalette();
+      lastPaletteSwap = curMillis;
       setNewVE(random(1, MAX_VE + 1));
       lastVESwap = curMillis;
     } else {
@@ -277,8 +281,15 @@ void updateIdleAnim() {
   if (bassBrightness < lastBassBrightness && !idleBassBrightnessDecreasing) { idleBassBrightnessDecreasing = true; } //Also detect when we've just started decreasing, too
   analogWrite(PIN_BASS_LIGHT, bassBrightness); //Finally write the bass brightness and record the last used bass brightness
   lastBassBrightness = bassBrightness;
-  
-  idleRainbowWave();
+
+  switch (curIdle) {
+    case IDRainbowWave:
+      idleRainbowWave();
+      break;
+    case IDCylon:
+      idleCylon();
+      break;
+  }
   FastLED.show();
 }
 

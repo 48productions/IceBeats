@@ -132,7 +132,9 @@ void loop() {
       updateLightTest();
       
     } else { //Not in the lighting test, update visualizations/idles/etc
-      updateBassStrip();
+      if ((idling && idlePos < 1) || !idling) { //If we're not idling or idling without playing an idle animation, update the bass strip
+        updateBassStrip();
+      }
       
       if (peak.available()) { //We have peak data to read! READ IT!
         updatePeak();

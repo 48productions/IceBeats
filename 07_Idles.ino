@@ -13,6 +13,7 @@
  * Idle effect: Rainbow Wave
  * 
  * Rainbowy waves of goodness wipe out and slowly recede in, like the ocean.
+ * The bass strip just fades in and out without rainbows so that it doesn't look like unicorn barf
  */
 void idleRainbowWave() {
   fadeToBlackBy(leds, STRIP_LENGTH, 90); //Fade out the last update from the strip a bit
@@ -30,5 +31,29 @@ void idleRainbowWave() {
     idlePos = 0;
   }
 
-  curPalette[0] = CHSV(idleCurHue, 255, 255);
+  updateBassStrip();
+  //curPalette[0] = CHSV(idleCurHue, 255, 255); //Nuking the current palette for the bass strip looks kinda bleh
+}
+
+
+
+
+/**
+ * Scrolls singular dots on the main and bass strips back and forth
+ * (Todo: Does nothing on the main strip yet)
+ */
+void idleCylon() {
+  fadeToBlackBy(ledsBass, STRIP_BASS_LENGTH, 42); //Fade out the last update from the strip a bit
+  short pixelPos = wrapValue(idlePos * 2, 0, STRIP_BASS_LENGTH - 1); //Position of the scrolling dot this update
+  idleCurHue += sin(-0.04 * idlePos) * 2; //Waver the hue used for this idle a bit
+  
+  ledsBass[pixelPos] = CHSV(idleCurHue, 255, 255);
+  ledsBass[wrapValue(pixelPos - 1, 0, STRIP_BASS_LENGTH)] = CHSV(idleCurHue, 255, 255);
+  ledsBass[STRIP_BASS_LENGTH - pixelPos] = CHSV(idleCurHue, 255, 255);
+  ledsBass[wrapValue(STRIP_BASS_LENGTH - pixelPos - 1, 0, STRIP_BASS_LENGTH)] = CHSV(idleCurHue, 255, 255);
+
+  if (idlePos >= STRIP_BASS_LENGTH * 6) { //Do this for 6 cycles, then stop this animation
+    bassBrightness = 0;
+    idlePos = 0;
+  }
 }

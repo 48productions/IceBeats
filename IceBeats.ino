@@ -154,6 +154,16 @@ enum VisualizationEffect { //A list of all visualization effects we can use - de
 };
 const int MAX_VE = 5; //Maximum effect number we can use
 
+VisualizationEffect curEffect = VEPunch; //Current visualization in use
+
+
+enum IdleEffect { //A list of possible idle animations
+  IDRainbowWave,
+  IDCylon,
+};
+const int MAX_ID = 1; //Maximum usable idle number
+
+IdleEffect curIdle = IDCylon; //Current idle effect in use
 
 const CHSV palettes[][4] = { //List of HSV color palettes to use for visualization
   {CHSV(165, 240, 255), CHSV(128, 230, 255), CHSV(128, 180, 255), CHSV(128, 40, 255) }, //Palette 0: Blue, Aqua, Light Aqua, Light Aqua/white
@@ -164,8 +174,6 @@ const CHSV palettes[][4] = { //List of HSV color palettes to use for visualizati
   {CHSV(32, 220, 215), CHSV(50, 180, 200), CHSV(64, 210, 235), CHSV(64, 50, 255) }, //Palette 5: Orange, Dk Yellow, Yellow, Light yellow
   };
 const int MAX_PALETTE = sizeof(palettes) / sizeof(palettes[0]) - 1; //Maximum palette number we can use
-
-VisualizationEffect curEffect = VEPunch; //Current visualization in use
 
 int curPaletteIndex = 0; //Current palette index in use
 CHSV lastPalette[4] = palettes[0]; //The previous palette colors used
