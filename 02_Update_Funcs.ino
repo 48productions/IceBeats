@@ -27,10 +27,10 @@ void updateSerialLights() {
         switch (lightBytePos) { //Which byte of lighting data are we now receiving?
           case 0: //First byte of lighting data (cabinet lights)
             //Read x bit from the received byte using bitRead(), then set the corresponding light to that state
-            bitWrite(cabLEDs, 7, bitRead(receivedData, 0)); //Marquee up left
-            bitWrite(cabLEDs, 6, bitRead(receivedData, 1)); //Marquee up right
-            bitWrite(cabLEDs, 5, bitRead(receivedData, 2)); //Marquee down left
-            bitWrite(cabLEDs, 4, bitRead(receivedData, 3)); //Marquee down right
+            bitWrite(cabLEDs, 0, bitRead(receivedData, 0)); //Marquee up left
+            bitWrite(cabLEDs, 2, bitRead(receivedData, 1)); //Marquee up right
+            bitWrite(cabLEDs, 1, bitRead(receivedData, 2)); //Marquee down left
+            bitWrite(cabLEDs, 3, bitRead(receivedData, 3)); //Marquee down right
             /*for (int light = 0; light <= 3; light++) { //Iterate through the 4 marquee lights
               marqueeOn[light] = bitRead(receivedData, light);
             }*/
@@ -43,8 +43,8 @@ void updateSerialLights() {
             bitWrite(etcLEDs, 5, (bitRead(receivedData, 4) && !bitRead(receivedData, 5)) || (!bitRead(receivedData, 4) && bitRead(receivedData, 5)));
             break;
           case 1: //Second byte of lighting data (P1 menu button lights)
-            bitWrite(cabLEDs, 3, bitRead(receivedData, 0)); //P1 menu left
-            bitWrite(cabLEDs, 2, bitRead(receivedData, 4)); //P1 start
+            bitWrite(cabLEDs, 7, bitRead(receivedData, 0)); //P1 menu left
+            bitWrite(cabLEDs, 6, bitRead(receivedData, 4)); //P1 start
 
             //bitWrite(cabLEDs, 5, bitRead(receivedData, 5)); //P1 select
             break;
@@ -55,8 +55,8 @@ void updateSerialLights() {
             bitWrite(padLEDs, 5, bitRead(receivedData, 3));
             break;
           case 7: //Byte 8: P2 menu
-            bitWrite(cabLEDs, 1, bitRead(receivedData, 0)); //P2 menu left
-            bitWrite(cabLEDs, 0, bitRead(receivedData, 4)); //P2 start
+            bitWrite(cabLEDs, 5, bitRead(receivedData, 0)); //P2 menu left
+            bitWrite(cabLEDs, 4, bitRead(receivedData, 4)); //P2 start
 
             //bitWrite(cabLEDs, 4, bitRead(receivedData, 5)); //P2 select
             break;
