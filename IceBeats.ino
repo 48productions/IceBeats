@@ -22,7 +22,7 @@
 /*****************
  * CONFIGURATION *
  ****************/
-#define STRIP_LENGTH 90 //Number of LEDs in the strip (warning: Adding many LEDs slows updates)
+#define STRIP_LENGTH 56 //Number of LEDs in the strip (warning: Adding many LEDs slows updates)
 #define STRIP_DATA 9 //Pin connected to the LED strip
 
 #define STRIP_BASS_LENGTH 128 //Number of LEDs in our bass neon strip

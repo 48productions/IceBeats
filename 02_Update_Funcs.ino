@@ -46,7 +46,7 @@ void updateSerialLights() {
             bitWrite(cabLEDs, 7, bitRead(receivedData, 0)); //P1 menu left
             bitWrite(cabLEDs, 6, bitRead(receivedData, 4)); //P1 start
 
-            //bitWrite(cabLEDs, 5, bitRead(receivedData, 5)); //P1 select
+            bitWrite(etcLEDs, 0, bitRead(receivedData, 5)); //P1 select
             break;
           case 3: //Byte 4: P1 pad lights
             bitWrite(padLEDs, 4, bitRead(receivedData, 0)); //P1 Pad
@@ -58,7 +58,7 @@ void updateSerialLights() {
             bitWrite(cabLEDs, 5, bitRead(receivedData, 0)); //P2 menu left
             bitWrite(cabLEDs, 4, bitRead(receivedData, 4)); //P2 start
 
-            //bitWrite(cabLEDs, 4, bitRead(receivedData, 5)); //P2 select
+            bitWrite(etcLEDs, 1, bitRead(receivedData, 5)); //P2 select
             break;
           case 9: //Byte 10: P2 pad
             bitWrite(padLEDs, 3, bitRead(receivedData, 0)); //P2 Pad
