@@ -27,18 +27,32 @@ void setup() {
   pinMode(PIN_BASS_LIGHT, OUTPUT);
   pinMode(PIN_BASS_SEL_1, OUTPUT);
   pinMode(PIN_BASS_SEL_2, OUTPUT);
-  
+
+  #ifdef EXPANSION_SHIFT_REGISTERS
   pinMode(PIN_LIGHTS_LAT, OUTPUT);
   pinMode(PIN_LIGHTS_DAT, OUTPUT);
   pinMode(PIN_LIGHTS_CLK, OUTPUT);
+  #else
+  pinMode(PIN_P1_MENU, OUTPUT);
+  pinMode(PIN_P2_MENU, OUTPUT);
+  #endif
 
-  /*for (int i = 0; i <= 3; i++) { //Pinmode all the marquee lights
-    pinMode(pinLightsMarquee[i], OUTPUT);
-  }*/
-  
-  for (int i = 0; i <= maxKeycode; i++) { //Pinmode all the cabinet buttons we're gonna read
-    pinMode(keyIOPins[i], INPUT_PULLUP);
-  }
+  pinMode(PIN_P1_UP, OUTPUT);
+  pinMode(PIN_P1_DOWN, OUTPUT);
+  pinMode(PIN_P1_LEFT, OUTPUT);
+  pinMode(PIN_P1_RIGHT, OUTPUT);
+
+  pinMode(PIN_P2_UP, OUTPUT);
+  pinMode(PIN_P2_DOWN, OUTPUT);
+  pinMode(PIN_P2_LEFT, OUTPUT);
+  pinMode(PIN_P2_RIGHT, OUTPUT);
+
+  pinMode(PIN_P1_START, OUTPUT);
+  pinMode(PIN_P1_DOWN, OUTPUT);
+  pinMode(PIN_MARQUEE_LR, OUTPUT);
+  pinMode(PIN_MARQUEE_UR, OUTPUT);
+  pinMode(PIN_MARQUEE_LL, OUTPUT);
+  pinMode(PIN_MARQUEE_UL, OUTPUT);
 
   setNewPalette(0); //Initialize palette-related variables
 
@@ -151,37 +165,6 @@ void loop() {
       }
     }
   }
-  
-  /*for (int i = 0; i <= maxKeycode; i++) { //Handle keypresses!
-    bool buttonState = !digitalRead(keyIOPins[i]); //Read the state of this button, and invert it (they're active low)
-    if (buttonState && !keyIOPressed[i]) { //Falling edge: We just pressed this button!
-      if (keyIOCodes[i] < 0) { //Negative keycodes - special handling (a.k.a. do some volume control stuffs
-        Keyboard.press(KEY_F3); //Volume is handled in SM by holding F3 and pressing R/T. Press F3 and pulse R/T here, and release F3 on volume button release
-        switch (keyIOCodes[i]) {
-          case -1:
-            Keyboard.press('r');
-            Keyboard.release('r');
-            break;
-          case -2:
-            Keyboard.press('t');
-            Keyboard.release('t');
-            break;
-        }
-      } else {
-        Keyboard.press(keyIOCodes[i]);
-      }
-      keyIOPressed[i] = true;
-
-      
-    } else if (!buttonState && keyIOPressed[i]) { //Rising edge: We just released this button!
-      if (keyIOCodes[i] < 0) { //Negative keycodes - special handling (a.k.a. release F3 for volume control)
-        Keyboard.release(KEY_F3);
-      } else {
-        Keyboard.release(keyIOCodes[i]);
-      }
-      keyIOPressed[i] = false;
-    }
-  }*/
 
   /*Serial.print(curMillis);
   Serial.print(" ");

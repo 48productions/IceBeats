@@ -20,6 +20,7 @@ void updateSerialLights() {
     receivedData = Serial.read(); //Read the next byte of serial data
     //Serial.println(receivedData);
     if (receivedData == '\n') { //If we got a newline (\n), we're done receiving new light states for this update
+      writeCabLighting(); //Write this lighting update to the shift registers/IO pins
       lightBytePos = 0; //The next byte of lighting data will be the first byte
     } else {
 
@@ -72,7 +73,6 @@ void updateSerialLights() {
     }
   }
 
-  writeCabLighting(); //When we're done processing the serial data we have right now, write it to the shift registers!
 }
 
 
@@ -98,9 +98,6 @@ void updateLightTest() {
       cabLEDs = 0; padLEDs = 0; etcLEDs = 0;
     }
 
-    for (int light = 0; light <= 3; light++) { //Iterate through the 4 marquee lights
-      marqueeOn[light] = isAlternateBassKick;
-    }
     writeCabLighting();
   }
 
@@ -237,7 +234,7 @@ void updateVisualization() {
   pitchGetLEDBrightnesses(curEffect == VEPitch); //Run VE Pitch's LED Brightness function (it also calculates our common frequency)
 
   
-      
+  // Run the current visualization effect's update routine
   switch (curEffect) {
     case VEDebugFFT:
       visualizeFFTDebug();

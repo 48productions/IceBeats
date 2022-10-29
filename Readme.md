@@ -2,35 +2,32 @@
 *"it's like a firebeat, but **cooler**"*
 
 ## Introduction
-IceBeats gives you real-time music visualization on an addressable LED strip.
+IceBeats is a Teensy-based lights driver board that does two things:
+ - Works with StepMania to control cabinet and pad lights in a 573-era DDR cabinet.
+ - Real-time, hardware independent music visualization across two LED strips.
 
-The hardware is dirt simple, and designed for to literally just be plug n play. Grab a Teensy 3.2, an addressable LED strip, and maybe a few basic components, and you're done! No bloated bluetooth/wifi control or complex setup (well, kinda).
-
-
-*(Sidenote, there IS a TON of 100% optional bloat instead! If you're planning on throwing this on a StepMania cabinet (like I am), this code can optionally drive your cabinet lights as well. It'll still work just fine if you don't need these extra features.)*
+The hardware is designed for minimal components/configuration for an embedded environment.
+Grab a Teensy 3.2, a few addressable LED strips, and a few basic components, and you're done! No bloated bluetooth/wifi control or complex hardware setup required.
 
 
 
-## Lighting Hardware
+## Features
 Code support for these are built-in - all 99% configurable, use any combination you like!
 
- * Visualization addressable LED strip - An addressable RGB LED strip for visualizations. Designed for 60-90 leds, more can be configured but may result in performance drops. 
- * Bass addressable LED strip - Another addressable RGB LED strip, blinks to the beat (automagically switches to SM control, if available)
- * Bass light strand - Designed for a single-color LED strip, or low voltage LED string lights. Blinks to the beat.
-     * Single color strands/strips work fine, but you can optionally use this with two-wire strands where alternate LEDs/colors are driven by reversing the strip polarity using a H-Bridge, like the L293D. The code, with an L293D, will alternate between the two polarities/strings every other beat.
+ * Visualization addressable LED strip - An addressable RGB LED strip for visualizations.
+ * Bass addressable LED strip - Another addressable RGB LED strip, blinks to the beat.
+ * Bass single-color LED strip/strand - Designed for a single-color LED strip, or low voltage LED string lights. Blinks to the beat.
+     * Supports two-wire LED strands, where alternate LEDs/colors are driven by reversing the strip polarity using a H-Bridge, like the L293D. These are cheap and readibly available off places like Amazon.
 
-## Electronics Hardware
- * Accepts audio input via RCA/mono 3.5mm jack (or any other input Teensy's audio library supports, like USB, through easy mods)
- * Designed around Teensy 3.2, other Audio-capable Teensy boards likely compatible (The 4.0 doesn't look to be 100% compatible at time of writing)
+ * Accepts audio input via RCA/mono 3.5mm jack (or with modification, any other input the Teensy audio library supports)
+ * Designed around Teensy 3.2, other Audio-capable Teensy boards likely compatible (the 4.0 is untested but may work)
  
-## Visualization
  * FFT-based music visualization using the Teensy Audio Library
- * Multiple visualization effects and optional dynamic, music-based color palettes
+ * Multiple visualization effects and color palettes. Optional dynamic, music-based color palettes available
  * Idle animations for when no music is playing
  
-## StepMania IO
- * Drives StepMania cabinet/pad lighting (reads the standard SextetStream format via serial, configure either SextetStreamToFile (Linux) or Win32Serial (Windows, SM5.3). Other, non-Stepmania programs are untested but probably work.
- * Can send input via keystrokes (currently disabled, you REALLY should go buy a J-PAC instead :P )
+ * Drives 573-era DanceDanceRevolution cabinet/pad lighting (reads SextetStream-formatted data output by StepMania or other programs).
+ * PCB design
 
 
 ## Hardware Setup
@@ -43,24 +40,24 @@ Audio input is taken via a 3.5mm/RCA jack. [Wiring instructions can be found on 
 ### Visualization LED strip:
 The main attraction, music visualization on an addressable LED strip!
 
-Any WS2812/NeoPixel strip will do here (default: pin 9, 54 pixels long, but you can easily drive 90+ without issue).
+Any WS2812/NeoPixel strip will do here (default: 54 pixels long, but can be configured for shorter/longer strips).
 Excessive pixel count may cause performance drops.
 
 
 ### Bass LED strip:
-This blinks to the beat with a nice strip-wide gradient, occasionally changing colors.
+This blinks to the beat with a strip-wide gradient, occasionally changing colors.
 
-Again, use any WS2812/NeoPixel strip (default: pin 5, 128 pixels. This can be made longer too)
+Again, use any WS2812/NeoPixel strip (default: 128 pixels. This can be made shorter/longer too)
 
 
 ### Bass light strand:
 This one just blinks to the beat! You've got a few options for this:
 
-For a single-color LED strip/string, one PWM pin is used for setting the strip's brightness (default: pin 6), just hook it up to a mosfet/transistor and you're good to go.
+For a single-color LED strip/string, one PWM pin is used for setting the strip's brightness, just hook it up to a mosfet/transistor and you're good to go.
   
 Some cheap LED strings on Amazon will control alternate LEDs, or different LED colors by reversing the strip polarity.
 If you have one of these strings, a L293D can be used to drive the strip at two different polarities to turn on alternate LEDs/colors.
-Two pins (default: 7/8) can optionally connect to a L293D to do this.
+Another pin can optionally connect to a L293D to do this. You will need to invert that pin's signal via a transistor, inverter, etc to drive the second input on the L293D.
 
 
 ### StepMania pad/cab light control:
@@ -68,11 +65,14 @@ This code accepts input over serial for any games/tools that use the SextetStrea
 
 In the case of StepMania, this means either using the SextetStreamToFile (Linux) or Win32Serial (Windows) lights driver.
 
-The light states are sent to 3 shift registers (default pins: clock 2, data 4, latch 3). The first controls pad lights, the second/third cabinet and menu button lights. 
+The light states are sent to the rest of the Teensy's IO pins. Ideally, these should connect to the DDR cabinet through opto isolators. No transistor/mosfet is needed here, the stock DDR cabinet amp handles the high-current loads.
+
+Lights data can optionally be output to three shift registers, as well, if you need more light outputs than the Teensy has pins.
 
 
 ## Todo:
  There's a lotta things that could be improved
+ * Better documentation/wiring instructions
  * A few bugfixes with idle animations on the main led strip
  * Better beat detection
  * Getting the visualizations to look like they reflect the music a bit closer

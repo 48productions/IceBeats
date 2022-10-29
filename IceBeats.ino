@@ -22,48 +22,73 @@
 /*****************
  * CONFIGURATION *
  ****************/
+ 
+// ADDRESSABLE LED CONFIGURATION
 #define STRIP_LENGTH 54 //Number of LEDs in the strip (warning: Adding many LEDs slows updates)
-#define STRIP_DATA 9 //Pin connected to the LED strip
+#define STRIP_DATA 14 //Pin connected to the LED strip
 
 #define STRIP_BASS_LENGTH 128 //Number of LEDs in our bass neon strip
-#define STRIP_BASS_DATA 5 //Pin connected to the bass neon strip
+#define STRIP_BASS_DATA 15 //Pin connected to the bass neon strip
 
 //Set this next option to true to make bass strip effects start in the center and wipe outwards (instead of starting at the edges and wiping inwards)
 //IceBeats was designed for the bass strip to be wrapped around a subwoofer with effects starting at the bottom of the sub and climbing towards the top
 //This value compensates for whether the ends of this strip are mounted at the top (true) or bottom (false) of the sub
 #define INVERT_BASS_STRIP_POS false
 
-#define DEBUG_FFT_BINS true //Set true to test FFT section responsiveness - bin sections are mapped to the brightness of specific pixels
 
-#define DEBUG_BURNIN false //Set to true to enable the light test at boot and disable timing out of it
+// EXPANSION PORT CONFIGURATION
+// The expansion port currently has two modes:
+// Option A: Comment out the below line to drive an extra 3 cab lights off of the expansion port (currently configured for P1/P2 Menu lights)
+// Option B: Uncomment the below line to output cab/pad lighting data to shift registers attached to the expansion port
+//#define EXPANSION_SHIFT_REGISTERS true
 
-#define PIN_BASS_LIGHT 6 //PWM-able light for the bass string
-#define PIN_BASS_SEL_1 7 //My setup uses an LED light string where alternating LEDs are driven by reverse polarities (drive at +29V for even lights, -29V for odd lights).
-#define PIN_BASS_SEL_2 8 //These are driven using an H-bridge, these two pins control the direction the lights are driven in (and don't need to be PWMable)
 
-#define PIN_DEBUG_0 17 //Lighting test button
-#define PIN_DEBUG_1 14 //Swap visualization button
-#define PIN_DEBUG_2 15 //Swap palette button
-
-#define PIN_LIGHTS_LAT 3 //Pins for the latch, clock, and data lines for the lighting shift registers
-#define PIN_LIGHTS_CLK 2
-#define PIN_LIGHTS_DAT 4
-
+// VISUALIZATION CONFIGURATION
 #define USE_PRESET_PALETTES true //Set whether to use pre-set or base palettes off of the music. Pre-set is more visually pleasing, music-based may reflect changes in music better
 #define HUE_WAVER_STRENGTH 1.5 //When using preset palettes, the hue of the current palette will "waver" slightly to the beat of the music. This controls how strong this waver is (0 - none, 2 - strong)
 
-//const int pinLightsMarquee[4] = {20, 21, 22, 23}; //PWM-able pins for the 4 marquee lights, disabled at this time
 
+// CAB LIGHT CONFIGURATION
+#define PIN_BASS_LIGHT 22 //PWM-able light for the bass string
+#define PIN_BASS_SEL_1 23 //My setup uses an LED light string where alternating LEDs are driven by reverse polarities (drive at +29V for even lights, -29V for odd lights).
+#define PIN_BASS_SEL_2 24 //These are driven using an H-bridge, these use 1-2 pins control the direction the lights are driven in (and don't need to be PWMable).
+// Previously this used two pins on the Teensy, now this uses one pin and an inverter to get the second signal
 
-// STEPMANIA IO (Keystrokes)
-//  Inputs we currently send: Service, Vol Up, Vol Down
-//  This code automagically handles any keys you add to this list, just remember to assign it a keycode, a pin, and add entries to keyIOPressed[] as needed!
+#define PIN_DEBUG_0 17 //Lighting test button
+#define PIN_DEBUG_1 A14 //Swap visualization button
+#define PIN_DEBUG_2 25 //Swap palette button (there if you need it)
 
-const int keyIOCodes[] = {'`', -1, -2}; //List of keycodes we can send to the PC this is plugged into
-const int keyIOPins[] = {12, 10, 11}; //List of IO pins we should read to send these above keycodes
-bool keyIOPressed[] = {false, false, false}; //Is xyz key currently pressed?
+// Configure pins for the expansion port shift registers (top) or expansion port menu lights (bottom)
+#ifdef EXPANSION_SHIFT_REGISTERS
+#define PIN_LIGHTS_LAT 1 //Pins for the latch, clock, and data lines for the lighting shift registers, if shift register output is enabled above
+#define PIN_LIGHTS_CLK 0 //(Default: Mapped to the Expansion pins on the IceBeats I/O PCB)
+#define PIN_LIGHTS_DAT 12
 
+#else
+#define PIN_P1_MENU 0 // P1 Menu Left/Right (expansion port pin 5)
+#define PIN_P2_MENU 1 // P2 Menu Left/Right (expansion port pin 6)
+#endif
 
+#define PIN_P1_UP 8
+#define PIN_P1_DOWN 9
+#define PIN_P1_LEFT 10
+#define PIN_P1_RIGHT 11
+
+#define PIN_P2_UP 18
+#define PIN_P2_DOWN 19
+#define PIN_P2_LEFT 20
+#define PIN_P2_RIGHT 21
+
+#define PIN_P1_START 2
+#define PIN_P2_START 7
+#define PIN_MARQUEE_LR 3
+#define PIN_MARQUEE_UR 4
+#define PIN_MARQUEE_LL 5
+#define PIN_MARQUEE_UL 6
+
+// Debugging
+#define DEBUG_FFT_BINS true //Set true to test FFT section responsiveness - bin sections are mapped to the brightness of specific pixels
+#define DEBUG_BURNIN false //Set to true to enable the light test at boot, and to disable the 
 
 
 /*****************
@@ -80,20 +105,20 @@ const int STRIP_32ND = STRIP_LENGTH / 32;
 const int STRIP_BASS_HALF = STRIP_BASS_LENGTH / 2; //Half length of the bass strip
 const float BASS_DELTA = 65.0 / STRIP_BASS_HALF; //Controls strip-wide hue shifts for bass visualizations (higher number = more rainbow for bass kicks)
 
-const int PULSE_MAX_SIZE_BASS = STRIP_LENGTH / 6; //Maximum section sizes for VE Pulse (based on strip length)
+const int PULSE_MAX_SIZE_BASS = STRIP_LENGTH / 6; //Maximum section sizes for Visualization Effect Pulse (based on strip length)
 const int PULSE_MAX_SIZE_LOW = STRIP_LENGTH / 8;
 const int PULSE_MAX_SIZE_MID = STRIP_LENGTH / 8;
 const int PULSE_MAX_SIZE_HIGH = STRIP_LENGTH / 8;
 
-const int PUNCH_MAX_SIZE_BASS = STRIP_LENGTH / 6; //Maximum section sizes for VE Punch
+const int PUNCH_MAX_SIZE_BASS = STRIP_LENGTH / 6; //Maximum section sizes for Visualization Effect Punch
 const int PUNCH_MAX_SIZE_LOW = STRIP_LENGTH / 8;
 const int PUNCH_MAX_SIZE_MID = STRIP_LENGTH / 8;
 const int PUNCH_MAX_SIZE_HIGH = STRIP_LENGTH / 8;
 
-const int KICK_MAX_SIZE_BASS = STRIP_LENGTH / 6; //Maximum section sizes for VE Kick
+const int KICK_MAX_SIZE_BASS = STRIP_LENGTH / 6; //Maximum section sizes for Visualization Effect Kick
 const int KICK_MAX_SIZE_SECTION = STRIP_LENGTH / 8;
 
-const int VOLUME_MAX_SIZE_BASS = STRIP_LENGTH / 4; //Maximum section sizes for VE Volume
+const int VOLUME_MAX_SIZE_BASS = STRIP_LENGTH / 4; //Maximum section sizes for Visualization Effect Volume
 const int VOLUME_MAX_SIZE_LOW = STRIP_LENGTH / 10;
 const int VOLUME_MAX_SIZE_MID = STRIP_LENGTH / 10;
 const int VOLUME_MAX_SIZE_HIGH = STRIP_LENGTH / 10;
@@ -243,17 +268,12 @@ unsigned long lastSMBassChange = 0;
  *************************/
 
 //This code also works as an IO board for Stepmania-converted dance cabinets. These variables handle all that fun stuff:
-const int maxKeycode = sizeof(keyIOCodes) / sizeof(keyIOCodes[0]) - 1; //Maximum keycode number we'll scan for
-
 byte receivedData = 0; //The byte of serial data we just got
 int lightBytePos = 0; //How many bytes of the 13 bytes of light data have we received?
 
 byte cabLEDs = 0; //Cab lights byte (4x marquee, 4x menu buttons)
 byte padLEDs = 0; //Pad lights byte (4x pad led per player)
 byte etcLEDs = 0; //Etc lights byte (2x bass light, room for expansion/modification)
-
-bool marqueeOn[4] = {false, false, false, false}; //The current state and brightness of the 4 marquee lights
-float marqueeBrightness[4] = {0.01, 0.01, 0.01, 0.01};
 
 
 

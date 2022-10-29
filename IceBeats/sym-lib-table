@@ -1,0 +1,3 @@
+(sym_lib_table
+  (lib (name "IceBeats-rescue")(type "Legacy")(uri "${KIPRJMOD}/IceBeats-rescue.lib")(options "")(descr ""))
+)
