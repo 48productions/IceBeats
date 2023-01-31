@@ -28,10 +28,10 @@ void updateSerialLights() {
         switch (lightBytePos) { //Which byte of lighting data are we now receiving?
           case 0: //First byte of lighting data (cabinet lights)
             //Read x bit from the received byte using bitRead(), then set the corresponding light to that state
-            bitWrite(cabLEDs, 0, bitRead(receivedData, 0)); //Marquee up left
-            bitWrite(cabLEDs, 2, bitRead(receivedData, 1)); //Marquee up right
-            bitWrite(cabLEDs, 1, bitRead(receivedData, 2)); //Marquee down left
-            bitWrite(cabLEDs, 3, bitRead(receivedData, 3)); //Marquee down right
+            bitWrite(cabLEDs, 3, bitRead(receivedData, 0)); //Marquee up left
+            bitWrite(cabLEDs, 1, bitRead(receivedData, 1)); //Marquee up right
+            bitWrite(cabLEDs, 2, bitRead(receivedData, 2)); //Marquee down left
+            bitWrite(cabLEDs, 0, bitRead(receivedData, 3)); //Marquee down right
             /*for (int light = 0; light <= 3; light++) { //Iterate through the 4 marquee lights
               marqueeOn[light] = bitRead(receivedData, light);
             }*/
@@ -50,10 +50,10 @@ void updateSerialLights() {
             bitWrite(etcLEDs, 0, bitRead(receivedData, 5)); //P1 select
             break;
           case 3: //Byte 4: P1 pad lights
-            bitWrite(padLEDs, 4, bitRead(receivedData, 0)); //P1 Pad
-            bitWrite(padLEDs, 7, bitRead(receivedData, 1));
-            bitWrite(padLEDs, 6, bitRead(receivedData, 2));
-            bitWrite(padLEDs, 5, bitRead(receivedData, 3));
+            bitWrite(padLEDs, 2, bitRead(receivedData, 0)); //P1 Pad
+            bitWrite(padLEDs, 3, bitRead(receivedData, 1));
+            bitWrite(padLEDs, 0, bitRead(receivedData, 2));
+            bitWrite(padLEDs, 1, bitRead(receivedData, 3));
             break;
           case 7: //Byte 8: P2 menu
             bitWrite(cabLEDs, 6, bitRead(receivedData, 0)); //P2 menu left
@@ -62,10 +62,10 @@ void updateSerialLights() {
             bitWrite(etcLEDs, 1, bitRead(receivedData, 5)); //P2 select
             break;
           case 9: //Byte 10: P2 pad
-            bitWrite(padLEDs, 3, bitRead(receivedData, 0)); //P2 Pad
-            bitWrite(padLEDs, 0, bitRead(receivedData, 1));
-            bitWrite(padLEDs, 2, bitRead(receivedData, 2));
-            bitWrite(padLEDs, 1, bitRead(receivedData, 3));
+            bitWrite(padLEDs, 6, bitRead(receivedData, 0)); //P2 Pad
+            bitWrite(padLEDs, 7, bitRead(receivedData, 1));
+            bitWrite(padLEDs, 4, bitRead(receivedData, 2));
+            bitWrite(padLEDs, 5, bitRead(receivedData, 3));
             break;
         }
         lightBytePos++; //Finally, update how many bytes of lighting data we've received.

@@ -48,7 +48,7 @@ void setup() {
   pinMode(PIN_P2_RIGHT, OUTPUT);
 
   pinMode(PIN_P1_START, OUTPUT);
-  pinMode(PIN_P1_DOWN, OUTPUT);
+  pinMode(PIN_P2_START, OUTPUT);
   pinMode(PIN_MARQUEE_LR, OUTPUT);
   pinMode(PIN_MARQUEE_UR, OUTPUT);
   pinMode(PIN_MARQUEE_LL, OUTPUT);
