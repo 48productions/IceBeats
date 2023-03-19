@@ -24,9 +24,9 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   
   pinMode(STRIP_DATA, OUTPUT);
-  pinMode(PIN_BASS_LIGHT, OUTPUT);
-  pinMode(PIN_BASS_SEL_1, OUTPUT);
-  pinMode(PIN_BASS_SEL_2, OUTPUT);
+  pinMode(PIN_BASS_LIGHT_1, OUTPUT);
+  pinMode(PIN_BASS_LIGHT_2, OUTPUT);
+  //pinMode(PIN_BASS_SEL_2, OUTPUT);
 
   #ifdef EXPANSION_SHIFT_REGISTERS
   pinMode(PIN_LIGHTS_LAT, OUTPUT);
@@ -87,7 +87,7 @@ void loop() {
     lightTestEnabled = !lightTestEnabled;
     if (lightTestEnabled) { //Going into the light test, set some variables to prepare for it
       lightTestStartMillis = curMillis;
-      analogWrite(PIN_BASS_LIGHT, 255);
+      writeBass(255);
       lightTestStripPos = 0;
       lightTestStripColor = 0;
       FastLED.clear(); //Clear the LED strip for the test:tm:

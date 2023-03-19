@@ -1,5 +1,5 @@
 /*****************************
- * ICEBEATS MUSIC VISUALIZER *
+   ICEBEATS MUSIC VISUALIZER
  ****************************/
 
 //#define NO_CORRECTION 1
@@ -20,9 +20,9 @@
 
 
 /*****************
- * CONFIGURATION *
+   CONFIGURATION
  ****************/
- 
+
 // ADDRESSABLE LED CONFIGURATION
 #define STRIP_LENGTH 54 //Number of LEDs in the strip (warning: Adding many LEDs slows updates)
 #define STRIP_DATA 14 //Pin connected to the LED strip
@@ -49,10 +49,10 @@
 
 
 // CAB LIGHT CONFIGURATION
-#define PIN_BASS_LIGHT 22 //PWM-able light for the bass string
-#define PIN_BASS_SEL_1 23 //My setup uses an LED light string where alternating LEDs are driven by reverse polarities (drive at +29V for even lights, -29V for odd lights).
-#define PIN_BASS_SEL_2 24 //These are driven using an H-bridge, these use 1-2 pins control the direction the lights are driven in (and don't need to be PWMable).
-// Previously this used two pins on the Teensy, now this uses one pin and an inverter to get the second signal
+#define PIN_BASS_LIGHT_1 22 //PWM-able pins for the bass string
+#define PIN_BASS_LIGHT_2 23 //My setup uses an LED light string where alternating LEDs are driven by reverse polarities (drive at +29V for even lights, -29V for odd lights).
+//#define PIN_BASS_SEL_2 24 //These are driven using an H-bridge, which use 2 pins control which set of lights are turned on.
+// (previously used one pin for enable and two for direction (L298), now uses one for each direction (DRV8871). You can also drive two single color LED strips or similar)
 
 #define PIN_DEBUG_0 17 //Lighting test button
 #define PIN_DEBUG_1 A14 //Swap visualization button
@@ -92,7 +92,7 @@
 
 
 /*****************
- * EFFECT CONFIG * 
+   EFFECT CONFIG
  ****************/
 
 const int STRIP_HALF = STRIP_LENGTH / 2; //Convinience variables for half/4th/etc of the strip length
@@ -126,19 +126,19 @@ const int VOLUME_MAX_SIZE_HIGH = STRIP_LENGTH / 10;
 const int PITCH_SECTION_SIZE = STRIP_HALF / 3; //Section size for VE Pitch's palette gradients
 const double PITCH_BIN_EXP = log10(511) / STRIP_HALF; //Magic number used to help calculate a curve to determine the number of FFT bins per pixel in VE Pitch (More documentation below)
 
-const short COMMON_FREQ_MIN = (log10(4)/PITCH_BIN_EXP)-1; //The first and last LED brightness indexes from VE Pitch's brightness function to use for common frequency calculation
-const short COMMON_FREQ_MAX = (log10(42)/PITCH_BIN_EXP)-1; //(For these, we're finding the pixels where FFT bins 4 and 36 are)
+const short COMMON_FREQ_MIN = (log10(4) / PITCH_BIN_EXP) - 1; //The first and last LED brightness indexes from VE Pitch's brightness function to use for common frequency calculation
+const short COMMON_FREQ_MAX = (log10(42) / PITCH_BIN_EXP) - 1; //(For these, we're finding the pixels where FFT bins 4 and 36 are)
 
 
 
 
- /**********************
-  * HARDWARE VARIABLES *
-  *********************/
+/**********************
+   HARDWARE VARIABLES
+ *********************/
 
 //Audio setup: Uses ADC for input, then uses the magic of software for the following steps:
 // ADC goes into amp, amp output goes into objects to detect audio peaks and FFT analysis
-  
+
 // GUItool: begin automatically generated code
 AudioInputAnalog         adc;           //xy=274,198
 AudioAmplifier           amp;           //xy=333,187
@@ -161,12 +161,12 @@ float curGain = 1; //Current gain to use, used for AGC
 
 bool heartbeatState = LOW; //Is the heartbeat LED on or off?
 unsigned long lastHeartbeatFlipMs = 0; //Last time the heartbeat LED changed states
- 
+
 
 
 
 /***************************
- * VISUALIZATION VARIABLES *
+   VISUALIZATION VARIABLES
  **************************/
 
 enum VisualizationEffect { //A list of all visualization effects we can use - described in their individual functions
@@ -197,7 +197,7 @@ const CHSV palettes[][4] = { //List of HSV color palettes to use for visualizati
   {CHSV(192, 240, 200), CHSV(160, 220, 215), CHSV(128, 190, 235), CHSV(128, 60, 255) }, //Palette 3: Purple, blue, aqua, light aqua
   {CHSV(0, 220, 200), CHSV(32, 220, 215), CHSV(64, 210, 235), CHSV(64, 50, 255) }, //Palette 4: Red, orange, yellow, light yellow
   {CHSV(32, 220, 215), CHSV(50, 180, 200), CHSV(64, 210, 235), CHSV(64, 50, 255) }, //Palette 5: Orange, Dk Yellow, Yellow, Light yellow
-  };
+};
 const int MAX_PALETTE = sizeof(palettes) / sizeof(palettes[0]) - 1; //Maximum palette number we can use
 
 int curPaletteIndex = 0; //Current palette index in use
@@ -264,7 +264,7 @@ unsigned long lastSMBassChange = 0;
 
 
 /**************************
- * STEPMANIA IO VARIABLES * 
+   STEPMANIA IO VARIABLES
  *************************/
 
 //This code also works as an IO board for Stepmania-converted dance cabinets. These variables handle all that fun stuff:
@@ -279,16 +279,16 @@ byte etcLEDs = 0; //Etc lights byte (2x bass light, room for expansion/modificat
 
 
 /*********************
- * UTILITY FUNCTIONS * 
+   UTILITY FUNCTIONS
  ********************/
 
 
 
 
 /**
- * If val is above a max value, it will wrap around to the min value
- * If a val is below the min value, it will wrap around to the max value
- */
+   If val is above a max value, it will wrap around to the min value
+   If a val is below the min value, it will wrap around to the max value
+*/
 short wrapValue(short val, short minVal, short maxVal) {
   while (val > maxVal) { val -= maxVal; }
   while (val < minVal) { val += maxVal; }

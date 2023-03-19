@@ -12,23 +12,27 @@
 
 
 /**
- * Alternates the isAlternateBassKick variable and drives the bass selection pins
+ * Alternates the isAlternateBassKick variable
  */
 void alternateBassSel() {
   isAlternateBassKick = !isAlternateBassKick;
-  writeBassSel(isAlternateBassKick);
 }
 
 
 
 
 /**
- * Writes the two bass light selection pins.
- * One must be high and the other low, otherwise we get no output when the enable pin is high.
+ * Writes the two bass light pins.
+ * One must be the signal, the other ground
  */
-void writeBassSel(bool sel) {
-  digitalWrite(PIN_BASS_SEL_1, sel);
-  digitalWrite(PIN_BASS_SEL_2, !sel);
+void writeBass(short val) {
+  if (isAlternateBassKick) {
+    analogWrite(PIN_BASS_LIGHT_1, val);
+    analogWrite(PIN_BASS_LIGHT_2, 0);
+  } else {
+    analogWrite(PIN_BASS_LIGHT_2, val);
+    analogWrite(PIN_BASS_LIGHT_1, 0);
+  }
 }
 
 

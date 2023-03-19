@@ -179,7 +179,7 @@ float getBassKickProgress() {
   
   //digitalWrite(LED_BUILTIN, kicking > 0); //Also light our debug LED while the bass kick is happening
   bassBrightness = kicking * 255; //Record the brightness of the bass light (for use with other functions)
-  analogWrite(PIN_BASS_LIGHT, bassBrightness); //Also (also) write our bass output while we're at it
+  writeBass(bassBrightness); //Also (also) write our bass output while we're at it
   
   //Serial.println(kicking);
   return kicking;

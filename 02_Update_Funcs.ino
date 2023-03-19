@@ -88,7 +88,7 @@ void updateLightTest() {
   }
     
   if (curMillis - lightTestLastToggleMillis >= 500) { //500ms has passed, toggle the digital cabinet lights
-    analogWrite(PIN_BASS_LIGHT, 255);
+    writeBass(255);
     alternateBassSel();
     lightTestLastToggleMillis = curMillis;
       
@@ -276,7 +276,7 @@ void updateIdleAnim() {
   bassBrightness = abs(255 * sin(0.05 * idlePos)); //Let's also pulse on and off the bass light - calculate it's brightness
   if (bassBrightness > lastBassBrightness && idleBassBrightnessDecreasing) { alternateBassSel(); idleBassBrightnessDecreasing = false; } //Have we just started increasing the brightness? Flip which bass light is in use
   if (bassBrightness < lastBassBrightness && !idleBassBrightnessDecreasing) { idleBassBrightnessDecreasing = true; } //Also detect when we've just started decreasing, too
-  analogWrite(PIN_BASS_LIGHT, bassBrightness); //Finally write the bass brightness and record the last used bass brightness
+  writeBass(bassBrightness); //Finally write the bass brightness and record the last used bass brightness
   lastBassBrightness = bassBrightness;
 
   switch (curIdle) {
@@ -301,7 +301,7 @@ void updateIdle() {
   fadeToBlackBy(leds, STRIP_LENGTH, 30);
   FastLED.show();
   
-  if (bassBrightness > 0) { bassBrightness *= 0.8; analogWrite(PIN_BASS_LIGHT, bassBrightness); } //Did we not completely fade out the bass light during the last idle cycle? Let's keep fading it out here
+  if (bassBrightness > 0) { bassBrightness *= 0.8; writeBass(bassBrightness); } //Did we not completely fade out the bass light during the last idle cycle? Let's keep fading it out here
 }
 
 
